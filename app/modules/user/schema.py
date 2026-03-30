@@ -11,7 +11,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     image: Optional[str] = None
-    profile: Optional[str]
+    profile: Optional[str] = "user"
     active: bool
 
 
