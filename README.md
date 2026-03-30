@@ -37,6 +37,10 @@ source venv/Scripts/activate
 
 pip install -r requirements.txt
 
+## Gerar uma SECRET_KEY:
+
+python -c "import secrets; print(secrets.token_hex(32))"
+
 ## ▶️ Rodando o servidor
 
 uvicorn app.main:app --reload
