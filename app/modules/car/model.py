@@ -30,6 +30,7 @@ class Car(SQLModel, table=True):
     )
     model: str = Field()
     license: str = Field(sa_column_kwargs={"unique": True, "index": True})
+    driver_id: uuid.UUID = Field(foreign_key="drivers.id", nullable=False, index=True)
     manufacture: int | None = Field(default=None)
     km: int | None = Field(default=None)
     fuel: CarFuel = Field(
@@ -51,5 +52,8 @@ class Car(SQLModel, table=True):
     image: str | None = Field(default=None)
 
     # Relationship
-    driver: Optional["Driver"] = Relationship(back_populates="car_driver")
+    driver: Optional["Driver"] = Relationship(
+        back_populates="car_driver",
+        sa_relationship_kwargs={"foreign_keys": "[Car.driver_id]"},
+    )
     car_orders: List["Order"] = Relationship(back_populates="car")
