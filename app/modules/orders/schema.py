@@ -9,6 +9,7 @@ from app.modules.orders.model import OrderStatus
 # ORDER ITEM
 # ─────────────────────────────────────────────
 
+
 class OrderItemBase(BaseModel):
     product_id: uuid.UUID
     quantity: int
@@ -24,7 +25,7 @@ class OrderItemUpdate(BaseModel):
     total_price: Optional[float] = None
 
 
-class OrderItemRead(OrderItemBase):
+class OrderItemResponse(OrderItemBase):
     id: uuid.UUID
     order_id: uuid.UUID
 
@@ -32,6 +33,7 @@ class OrderItemRead(OrderItemBase):
 # ─────────────────────────────────────────────
 # ORDER
 # ─────────────────────────────────────────────
+
 
 class OrderBase(BaseModel):
     code: str
@@ -45,6 +47,7 @@ class OrderCreate(OrderBase):
     O back-end cria a Order e os OrderItems em uma única transação,
     e em seguida atualiza o Inventory conforme o tipo (entrada/saída).
     """
+
     items: List[OrderItemCreate]
 
     @field_validator("items")
@@ -59,42 +62,42 @@ class OrderUpdate(BaseModel):
     type: Optional[str] = None
     observations: Optional[str] = None
     status: Optional[OrderStatus] = None
- 
- 
+
+
 class OrderStatusUpdate(BaseModel):
     """Usado para transições de status isoladas (ex: confirmar, cancelar)."""
+
     status: OrderStatus
- 
- 
-class OrderItemReadNested(OrderItemBase):
+
+
+class OrderItemResponseNested(OrderItemBase):
     """OrderItem embutido na leitura de uma Order (sem order_id redundante)."""
+
     id: uuid.UUID
     product_id: uuid.UUID
- 
-    class Config:
-        from_attributes = True
- 
 
-class OrderRead(OrderBase):
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderResponse(OrderBase):
     id: uuid.UUID
     status: OrderStatus
     active: bool
     created_at: Optional[datetime]
     processed_at: Optional[datetime]
-    items: List[OrderItemReadNested] = []
- 
-    class Config:
-        from_attributes = True
- 
- 
-class OrderReadSummary(BaseModel):
+    items: List[OrderItemResponseNested] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderResponseSummary(BaseModel):
     """Versão resumida para listagens (sem carregar items)."""
+
     id: uuid.UUID
     code: str
     type: str
     status: OrderStatus
     active: bool
     created_at: Optional[datetime]
- 
-    class Config:
-        from_attributes = True
+
+    model_config = ConfigDict(from_attributes=True)

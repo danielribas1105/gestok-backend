@@ -2,46 +2,46 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from app.modules.auth.service import get_current_user
-from app.modules.drivers.model import Car
-from app.modules.drivers.schema import CarCreate, CarResponse, CarUpdate
+from app.modules.drivers.model import Driver
+from app.modules.drivers.schema import DriverCreate, DriverResponse, DriverUpdate
 from app.modules.drivers import service
 from app.modules.user.model import User
 
-router = APIRouter(prefix="/cars", tags=["Cars"])
+router = APIRouter(prefix="/drivers", tags=["Drivers"])
 
 
-@router.get("", response_model=list[CarResponse])
-async def list_cars(
+@router.get("", response_model=list[DriverResponse])
+async def list_drivers(
     offset: int = 0, limit: int = 20, user: User = Depends(get_current_user)
 ):
-    return await service.list_cars(offset, limit)
+    return await service.list_drivers(offset, limit)
 
 
-@router.post("", response_model=CarResponse, status_code=201)
-async def create_car(car: CarCreate, user: User = Depends(get_current_user)):
-    return await service.create_car(car)
+@router.post("", response_model=DriverResponse, status_code=201)
+async def create_driver(driver: DriverCreate, user: User = Depends(get_current_user)):
+    return await service.create_driver(driver)
 
 
-@router.get("/{car_id}", response_model=CarResponse)
-async def get_car(car_id: uuid.UUID, user: User = Depends(get_current_user)):
-    car = await service.get_car_by_id(car_id)
-    if not car:
-        raise HTTPException(status_code=404, detail="Veículo não encontrado")
-    return car
+@router.get("/{driver_id}", response_model=DriverResponse)
+async def get_driver(driver_id: uuid.UUID, user: User = Depends(get_current_user)):
+    driver = await service.get_driver_by_id(driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Motorista não encontrado")
+    return driver
 
 
-@router.put("/{car_id}", response_model=CarResponse)
-async def update_car(
-    car_id: uuid.UUID,
-    data: CarUpdate,
+@router.put("/{driver_id}", response_model=DriverResponse)
+async def update_driver(
+    driver_id: uuid.UUID,
+    data: DriverUpdate,
     user: User = Depends(get_current_user),
 ):
-    return await service.update(car_id, data)
+    return await service.update(driver_id, data)
 
 
-@router.delete("/{car_id}", status_code=204)
-async def delete_car(car_id: uuid.UUID, user: User = Depends(get_current_user)):
-    await service.delete(car_id)
+@router.delete("/{driver_id}", status_code=204)
+async def delete_driver(driver_id: uuid.UUID, user: User = Depends(get_current_user)):
+    await service.delete(driver_id)
 
 
 # Atualização parcial

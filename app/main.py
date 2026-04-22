@@ -8,8 +8,8 @@ from app.modules.fleet.websocket import fleet_ws
 
 
 app = FastAPI(
-    title="GestObra API",
-    description="API GestObra Web Application",
+    title="GestOk API",
+    description="API GestOk Web Application",
     version="1.0.0",
     redirect_slashes=False,
 )

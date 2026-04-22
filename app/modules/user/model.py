@@ -8,7 +8,6 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from app.modules.orders.model import Order
-    from app.modules.drivers.model import Car
 
 
 class UserProfile(str, enum.Enum):

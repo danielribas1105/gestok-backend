@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 import app.modules.auth.route as auth
-import app.modules.drivers.route as car
+import app.modules.car.route as car
 import app.modules.clients.route as client
 import app.modules.drivers.route as driver
 import app.modules.fleet.route as fleet

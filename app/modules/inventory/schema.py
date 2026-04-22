@@ -1,41 +1,42 @@
 from datetime import datetime
 from typing import Optional
 import uuid
-from sqlmodel import SQLModel
+from pydantic import BaseModel, ConfigDict
 
 from app.modules.products.schema import ProductResponse
 
 
-class InventoryBase(SQLModel):
+class InventoryBase(BaseModel):
     product_id: uuid.UUID
     quantity: int
- 
- 
+
+
 class InventoryCreate(InventoryBase):
     """Criação manual de um registro inicial de estoque."""
+
     pass
- 
- 
-class InventoryUpdate(SQLModel):
+
+
+class InventoryUpdate(BaseModel):
     """
     Ajuste manual de estoque (ex: inventário físico, correção).
     Distinto das atualizações automáticas disparadas por Orders.
     """
+
     quantity: int
     reason: Optional[str] = None  # auditoria do ajuste
- 
- 
-class InventoryRead(InventoryBase):
+
+
+class InventoryResponse(InventoryBase):
     id: uuid.UUID
     last_updated_at: Optional[datetime]
- 
-    class Config:
-        from_attributes = True
- 
- 
-class InventoryReadWithProduct(InventoryRead):
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class InventoryResponseWithProduct(InventoryResponse):
     """Visão completa do estoque com dados do produto embutidos."""
+
     product: ProductResponse
- 
-    class Config:
-        from_attributes = True
+
+    model_config = ConfigDict(from_attributes=True)

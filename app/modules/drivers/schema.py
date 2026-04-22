@@ -3,7 +3,7 @@ from typing import Optional
 import uuid
 from pydantic import BaseModel, ConfigDict
 
-from app.modules.drivers.model import CarFuel
+from app.modules.car.model import CarFuel
 
 
 class DriverCreate(BaseModel):
