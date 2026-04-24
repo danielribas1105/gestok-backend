@@ -8,7 +8,8 @@ from app.modules.car.model import CarFuel
 
 class CarCreate(BaseModel):
     model: str
-    license: str
+    plate: str
+    driver_id: uuid.UUID
     manufacture: int | None = None
     km: int | None = None
     fuel: CarFuel = CarFuel.DIESEL
@@ -21,7 +22,8 @@ class CarCreate(BaseModel):
 
 class CarUpdate(BaseModel):
     model: Optional[str] = None
-    license: Optional[str] = None
+    plate: Optional[str] = None
+    driver_id: Optional[uuid.UUID] = None
     manufacture: Optional[int] = None
     km: Optional[int] = None
     fuel: Optional[CarFuel] = None
@@ -35,7 +37,8 @@ class CarUpdate(BaseModel):
 class CarResponse(BaseModel):
     id: uuid.UUID
     model: str
-    license: str
+    plate: str
+    driver_id: uuid.UUID
     manufacture: int | None = None
     km: int | None = None
     fuel: CarFuel

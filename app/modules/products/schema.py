@@ -5,25 +5,29 @@ from pydantic import BaseModel, ConfigDict
 
 class ProductCreate(BaseModel):
     code: str
-    name: str
+    description: str
     unit: str
     value: float
-    description: Optional[str] = None
     active: bool = True
     image: Optional[str] = None
 
 
 class ProductUpdate(BaseModel):
-    name: Optional[str] = None
     description: Optional[str] = None
+    unit: Optional[str] = None
     value: Optional[float] = None
+    active: Optional[bool] = None
+    image: Optional[str] = None
 
 
 class ProductResponse(BaseModel):
     id: uuid.UUID
-    name: str
-    description: Optional[str] = None
+    code: str
+    description: str
+    unit: str
     value: float
+    active: bool
+    image: str
 
     model_config = ConfigDict(from_attributes=True)
 

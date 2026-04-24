@@ -30,8 +30,8 @@ class Car(SQLModel, table=True):
     )
     model: str = Field()
     plate: str = Field(sa_column_kwargs={"unique": True, "index": True})
-    manufacture: int | None = Field(default=None)
     driver_id: uuid.UUID = Field(foreign_key="drivers.id", nullable=False, index=True)
+    manufacture: int | None = Field(default=None)
     km: int | None = Field(default=None)
     fuel: CarFuel = Field(
         default=CarFuel.DIESEL,

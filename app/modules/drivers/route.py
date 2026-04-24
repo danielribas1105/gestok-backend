@@ -1,8 +1,6 @@
 import uuid
-
 from fastapi import APIRouter, Depends, HTTPException
 from app.modules.auth.service import get_current_user
-from app.modules.drivers.model import Driver
 from app.modules.drivers.schema import DriverCreate, DriverResponse, DriverUpdate
 from app.modules.drivers import service
 from app.modules.user.model import User
