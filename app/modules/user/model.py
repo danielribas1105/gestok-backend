@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
-from sqlalchemy import Column, DateTime, Enum as SAEnum, String, func, text
+from sqlalchemy import Column, DateTime, String, func, text
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class UserProfile(str, enum.Enum):
     ADMIN = "admin"
     OPERATOR = "operator"
-    DRIVER = "driver"
+    USER = "user"
 
 
 class User(SQLModel, table=True):

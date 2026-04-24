@@ -18,6 +18,7 @@ class OrderType(str, enum.Enum):
     IN = "in"
     OUT = "out"
 
+
 class OrderStatus(str, enum.Enum):
     PENDING = "pending"
     PROCESSED = "processed"
@@ -34,12 +35,8 @@ class OrderItem(SQLModel, table=True):
         primary_key=True,
         sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
-    order_id: uuid.UUID = Field(
-        foreign_key="orders.id", nullable=False, index=True
-    )
-    product_id: uuid.UUID = Field(
-        foreign_key="products.id", nullable=False, index=True
-    )
+    order_id: uuid.UUID = Field(foreign_key="orders.id", nullable=False, index=True)
+    product_id: uuid.UUID = Field(foreign_key="products.id", nullable=False, index=True)
     quantity: int = Field(nullable=False)
     total_price: float = Field(nullable=False)
 
@@ -67,7 +64,7 @@ class Order(SQLModel, table=True):
             String(10),
             nullable=False,
             server_default=OrderType.OUT.value,
-        )
+        ),
     )
     status: OrderStatus = Field(
         default=OrderStatus.PENDING,
@@ -77,7 +74,6 @@ class Order(SQLModel, table=True):
             server_default=OrderStatus.PENDING.value,
         ),
     )
-    
     created_at: Optional[datetime] = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), server_default=func.now()),
@@ -103,6 +99,3 @@ class Order(SQLModel, table=True):
         back_populates="created_orders",
         sa_relationship_kwargs={"foreign_keys": "[Order.created_by]"},
     )
-
-
-

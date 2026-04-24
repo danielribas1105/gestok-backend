@@ -1,6 +1,7 @@
+from datetime import datetime
 import uuid
 from typing import TYPE_CHECKING, List, Optional
-from sqlalchemy import text
+from sqlalchemy import Column, DateTime, func, text
 from sqlmodel import Relationship, SQLModel, Field
 
 
@@ -17,9 +18,16 @@ class Product(SQLModel, table=True):
         primary_key=True,
         sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
-    name: str = Field(nullable=False)
+    code: str = Field(sa_column_kwargs={"unique": True, "index": True})
     description: Optional[str] = Field(default=None)
+    unit: str = Field(nullable=False)
     value: float = Field(nullable=False)
+    active: bool = Field(default=True)
+    created_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=func.now()),
+    )
+    image: Optional[str] = Field(default=None, nullable=True)
 
     # Relationship
     order_items: List["OrderItem"] = Relationship(back_populates="product")

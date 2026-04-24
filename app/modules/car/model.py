@@ -29,9 +29,9 @@ class Car(SQLModel, table=True):
         sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
     model: str = Field()
-    license: str = Field(sa_column_kwargs={"unique": True, "index": True})
-    driver_id: uuid.UUID = Field(foreign_key="drivers.id", nullable=False, index=True)
+    plate: str = Field(sa_column_kwargs={"unique": True, "index": True})
     manufacture: int | None = Field(default=None)
+    driver_id: uuid.UUID = Field(foreign_key="drivers.id", nullable=False, index=True)
     km: int | None = Field(default=None)
     fuel: CarFuel = Field(
         default=CarFuel.DIESEL,

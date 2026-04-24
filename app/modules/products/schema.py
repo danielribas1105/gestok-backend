@@ -4,9 +4,13 @@ from pydantic import BaseModel, ConfigDict
 
 
 class ProductCreate(BaseModel):
+    code: str
     name: str
-    description: Optional[str] = None
+    unit: str
     value: float
+    description: Optional[str] = None
+    active: bool = True
+    image: Optional[str] = None
 
 
 class ProductUpdate(BaseModel):
@@ -29,7 +33,8 @@ class ProductReadWithStock(ProductResponse):
     Produto com a quantidade atual em estoque,
     resolvida via JOIN com Inventory.
     """
+
     stock_quantity: int = 0
- 
+
     class Config:
         from_attributes = True
