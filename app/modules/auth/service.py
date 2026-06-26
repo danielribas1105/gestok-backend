@@ -3,13 +3,12 @@ from math import floor
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi_async_sqlalchemy import db
 from jose import jwt, JWTError
 
 from app.config import settings
-from app.modules.auth.schema import TokenData
 from app.modules.user.service import get_user_by_email, get_user_by_id
 from app.modules.auth.model import UserSession
 from app.utils.security import verify_password

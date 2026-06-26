@@ -23,14 +23,14 @@ async def login(data: LoginRequest) -> Token:
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Algo errado! Verifique e-mail e senha.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
     if not user.active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is inactive",
+            detail="Conta inativa!",
         )
 
     access_token, expire = create_access_token(
@@ -68,7 +68,7 @@ async def refresh(body: RefreshTokenBody) -> Token:
     user = await get_user_by_id(str(session.user_id))
 
     if not user or not user.active:
-        raise HTTPException(status_code=403, detail="User inactive")
+        raise HTTPException(status_code=403, detail="Usuário inativo!")
 
     # 🔥 gera novo access token
     access_token, expire = create_access_token(
@@ -95,14 +95,14 @@ async def login_for_access_token(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Usuário não autorizado.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
     if not user.active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is inactive",
+            detail="Conta inativa!",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
