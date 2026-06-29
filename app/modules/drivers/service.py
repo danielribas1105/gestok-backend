@@ -3,11 +3,10 @@ import uuid
 from fastapi import HTTPException
 from fastapi_async_sqlalchemy import db
 from sqlalchemy import select
-from app.modules.drivers.model import Driver
+from app.modules.drivers.model import DriverProfile
 from app.modules.drivers.schema import DriverCreate, DriverUpdate
 
-
-async def list_drivers(offset: int = 0, limit: int = 20) -> list[Driver]:
+""" async def list_drivers(offset: int = 0, limit: int = 20) -> list[Driver]:
     result = await db.session.execute(select(Driver).offset(offset).limit(limit))
     drivers = result.scalars().all()
     return drivers
@@ -18,17 +17,19 @@ async def create_driver(data: DriverCreate) -> Driver:
     db.session.add(driver)
     await db.session.commit()
     await db.session.refresh(driver)
-    return driver
+    return driver """
 
 
-async def get_driver_by_id(driver_id: uuid.UUID) -> Driver | None:
-    result = await db.session.execute(select(Driver).where(Driver.id == driver_id))
+async def get_driver_by_id(driver_id: uuid.UUID) -> DriverProfile | None:
+    result = await db.session.execute(
+        select(DriverProfile).where(DriverProfile.id == driver_id)
+    )
     driver = result.scalars().first()
 
     return driver
 
 
-async def update(driver_id: str, data: DriverUpdate) -> Driver:
+async def update(driver_id: str, data: DriverUpdate) -> DriverProfile:
     driver = await get_driver_by_id(driver_id)
     if not driver:
         raise HTTPException(status_code=404, detail="Motorista não encontrado")

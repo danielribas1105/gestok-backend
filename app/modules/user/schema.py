@@ -3,6 +3,7 @@ import uuid
 from typing import Optional
 from pydantic import BaseModel, EmailStr
 
+from app.modules.drivers.schema import DriverProfileCreate, DriverProfileResponse
 from app.modules.user.model import UserProfile
 
 
@@ -15,6 +16,7 @@ class UserCreate(BaseModel):
     profile: UserProfile = UserProfile.OPERATOR
     active: bool = True
     image: Optional[str] = None
+    driver: Optional[DriverProfileCreate] = None
 
 
 class UserUpdate(BaseModel):
@@ -26,6 +28,7 @@ class UserUpdate(BaseModel):
     profile: Optional[UserProfile] = None
     active: Optional[bool] = None
     image: Optional[str] = None
+    driver: Optional[DriverProfileCreate] = None
 
 
 class UserResponse(BaseModel):
@@ -40,6 +43,7 @@ class UserResponse(BaseModel):
     image: Optional[str] = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    driver_profile: Optional[DriverProfileResponse] = None
 
     model_config = {"from_attributes": True}
 

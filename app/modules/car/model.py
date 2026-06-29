@@ -5,9 +5,8 @@ import uuid
 from sqlmodel import Relationship, SQLModel, Field
 from sqlalchemy import Column, DateTime, String, func, text
 
-
 if TYPE_CHECKING:
-    from app.modules.drivers.model import Driver
+    from app.modules.user.model import User
     from app.modules.orders.model import Order
 
 
@@ -52,8 +51,14 @@ class Car(SQLModel, table=True):
     image: str | None = Field(default=None)
 
     # Relationship
-    driver: Optional["Driver"] = Relationship(
-        back_populates="car_driver",
+    driver_id: uuid.UUID = Field(
+        foreign_key="users.id",  # aponta direto pro User
+        nullable=False,
+        index=True,
+        unique=True,  # unique=True aqui garante 1:1 no banco
+    )
+    driver: Optional["User"] = Relationship(
+        back_populates="car",
         sa_relationship_kwargs={"foreign_keys": "[Car.driver_id]"},
     )
     car_orders: List["Order"] = Relationship(back_populates="car")
