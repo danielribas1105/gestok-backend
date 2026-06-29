@@ -3,11 +3,10 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 from sqlmodel import Relationship, SQLModel, Field
-from sqlalchemy import Column, DateTime, String, func, text
-
+from sqlalchemy import Column, DateTime, String, func
 
 if TYPE_CHECKING:
-    from app.modules.car.model import Car
+    from app.modules.user.model import User
 
 
 class TypeLicense(str, enum.Enum):
@@ -18,33 +17,26 @@ class TypeLicense(str, enum.Enum):
     E = "E"
 
 
-class Driver(SQLModel, table=True):
-    __tablename__ = "drivers"
+class DriverProfile(SQLModel, table=True):
+    __tablename__ = "driver_profiles"
 
-    id: uuid.UUID = Field(
-        default_factory=uuid.uuid4,
-        primary_key=True,
-        sa_column_kwargs={"server_default": text("gen_random_uuid()")},
+    # A PK é também a FK para users — isso garante 1:1 no banco
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id",
+        primary_key=True,  # PK + FK = 1:1 garantido
     )
-    name: str = Field()
-    cpf: Optional[str] = Field(default=None, nullable=True)
     license: str = Field()
     type: TypeLicense = Field(
         default=TypeLicense.B,
         sa_column=Column(
-            String(50),
-            nullable=False,
-            server_default=TypeLicense.B.value,
+            String(50), nullable=False, server_default=TypeLicense.B.value
         ),
     )
-    validity: Optional[datetime] = Field(default=None)
-    phone: str = Field()
-    active: bool = Field(default=True, sa_column_kwargs={"server_default": "true"})
-    created_at: Optional[datetime] = Field(
+    validity: Optional[datetime] = Field(
         default=None,
-        sa_column=Column(DateTime(timezone=True), server_default=func.now()),
+        sa_column=Column(DateTime(timezone=True), onupdate=func.now()),
     )
-    image: str | None = Field(default=None)
+    ear: Optional[bool] = Field(default=True)
 
     # Relationship
-    car_driver: List["Car"] = Relationship(back_populates="driver")
+    user: Optional["User"] = Relationship(back_populates="driver_profile")

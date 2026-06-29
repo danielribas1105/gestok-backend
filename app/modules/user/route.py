@@ -8,6 +8,13 @@ from app.modules.user import service
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
+# 1. Rotas estáticas primeiro
+@router.get("/me", response_model=UserResponse)
+async def my_profile(user: User = Depends(get_current_user)):
+    return user
+
+
+# 2. Rotas raiz
 @router.get("", response_model=list[UserResponse])
 async def list_users(
     offset: int = 0, limit: int = 20, user: User = Depends(get_current_user)
@@ -15,16 +22,12 @@ async def list_users(
     return await service.list_users(offset, limit)
 
 
-@router.get("/me", response_model=UserResponse)
-async def my_profile(user: User = Depends(get_current_user)):
-    return user
-
-
 @router.post("", response_model=UserResponse, status_code=201)
 async def register_user(data: UserCreate):
     return await service.create_user(data)
 
 
+# 3. Rotas com parâmetro dinâmico por último
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_profile(
     user_id: str,

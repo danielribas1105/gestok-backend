@@ -5,15 +5,16 @@ from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import Column, DateTime, String, func, text
 from sqlmodel import Field, Relationship, SQLModel
 
-
 if TYPE_CHECKING:
     from app.modules.orders.model import Order
+    from app.modules.drivers.model import DriverProfile
+    from app.modules.car.model import Car
 
 
 class UserProfile(str, enum.Enum):
     ADMIN = "admin"
     OPERATOR = "operator"
-    USER = "user"
+    DRIVER = "driver"
 
 
 class User(SQLModel, table=True):
@@ -53,4 +54,10 @@ class User(SQLModel, table=True):
     created_orders: List["Order"] = Relationship(
         back_populates="creator",
         sa_relationship_kwargs={"foreign_keys": "[Order.created_by]"},
+    )
+
+    driver_profile: Optional["DriverProfile"] = Relationship(back_populates="user")
+    car: Optional["Car"] = Relationship(
+        back_populates="driver",
+        sa_relationship_kwargs={"foreign_keys": "[Car.driver_id]"},
     )
