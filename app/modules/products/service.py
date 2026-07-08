@@ -2,7 +2,9 @@ import uuid
 
 from fastapi import HTTPException
 from fastapi_async_sqlalchemy import db
-from sqlalchemy import select
+from sqlalchemy import exists, select
+from app.modules.inventory.model import StockMovement
+from app.modules.orders.model import OrderItem
 from app.modules.products.model import Product
 from app.modules.products.schema import ProductCreate, ProductUpdate
 
@@ -21,9 +23,7 @@ async def create_product(data: ProductCreate) -> Product:
 
 
 async def get_product_by_id(product_id: uuid.UUID) -> Product | None:
-    result = await db.session.execute(
-        select(Product).where(Product.id == product_id)
-    )
+    result = await db.session.execute(select(Product).where(Product.id == product_id))
     return result.scalars().first()
 
 
@@ -38,9 +38,25 @@ async def update(product_id: uuid.UUID, data: ProductUpdate) -> Product:
     return product
 
 
+async def product_in_use(product_id: uuid.UUID) -> bool:
+    query = select(
+        exists().where(OrderItem.product_id == product_id)
+        | exists().where(StockMovement.product_id == product_id)
+    )
+    result = await db.session.execute(query)
+    return bool(result.scalar())
+
+
 async def delete(product_id: uuid.UUID) -> None:
     product = await get_product_by_id(product_id)
     if not product:
-        raise HTTPException(status_code=404, detail="Product não encontrado")
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+
+    productInUse = await product_in_use(product_id)
+    if productInUse:
+        raise HTTPException(
+            status_code=409,
+            detail="Produto não pode ser excluído, pois, existem pedidos relacionados",
+        )
     await db.session.delete(product)
     await db.session.commit()
