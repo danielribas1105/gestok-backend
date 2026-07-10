@@ -22,6 +22,13 @@ async def list_users(
     return await service.list_users(offset, limit)
 
 
+@router.get("/driver-list", response_model=list[UserResponse])
+async def list_drivers(
+    offset: int = 0, limit: int = 20, user: User = Depends(get_current_user)
+):
+    return await service.list_drivers(offset, limit)
+
+
 @router.post("", response_model=UserResponse, status_code=201)
 async def register_user(data: UserCreate):
     return await service.create_user(data)

@@ -2,7 +2,6 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from app.modules.auth.service import get_current_user
-from app.modules.car.model import Car
 from app.modules.car.schema import CarCreate, CarResponse, CarUpdate
 from app.modules.car import service
 from app.modules.user.model import User
@@ -42,25 +41,3 @@ async def update_car(
 @router.delete("/{car_id}", status_code=204)
 async def delete_car(car_id: uuid.UUID, user: User = Depends(get_current_user)):
     await service.delete(car_id)
-
-
-# Atualização parcial
-""" @router.patch("/{car_id}/assign-driver", response_model=schema.CarResponse)
-def assign_driver(id: str, driver_id: str, session: Session = Depends(get_db)):
-    # Verifica se o carro existe
-    car = session.get(Car, id)
-    if not car:
-        raise HTTPException(status_code=404, detail="Car not found")
-
-    # Verifica se o user existe
-    user = session.get(User, driver_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Atualiza o motorista
-    car.driver_id = driver_id
-    session.add(car)
-    session.commit()
-    session.refresh(car)
-
-    return car """

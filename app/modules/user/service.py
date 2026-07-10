@@ -19,6 +19,16 @@ async def list_users(offset: int = 0, limit: int = 20) -> list[User]:
     return result.scalars().all()
 
 
+async def list_drivers(offset: int = 0, limit: int = 20) -> list[User]:
+    result = await db.session.execute(
+        _user_with_driver()
+        .where(User.profile == UserProfile.DRIVER)
+        .offset(offset)
+        .limit(limit)
+    )
+    return result.scalars().all()
+
+
 async def get_user_by_id(user_id: str) -> User | None:
     result = await db.session.execute(_user_with_driver().where(User.id == user_id))
     return result.scalars().first()
