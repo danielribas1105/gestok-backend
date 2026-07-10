@@ -29,7 +29,12 @@ class Car(SQLModel, table=True):
     )
     model: str = Field()
     plate: str = Field(sa_column_kwargs={"unique": True, "index": True})
-    driver_id: uuid.UUID = Field(foreign_key="drivers.id", nullable=False, index=True)
+    driver_id: uuid.UUID = Field(
+        foreign_key="users.id",
+        nullable=False,
+        index=True,
+        unique=True,
+    )
     manufacture: int | None = Field(default=None)
     km: int | None = Field(default=None)
     fuel: CarFuel = Field(
@@ -41,7 +46,7 @@ class Car(SQLModel, table=True):
         ),
     )
     strength: str | None = Field(default=None)
-    capacity: str | None = Field(default=None)
+    capacity: int = Field()
     versatility: str | None = Field(default=None)
     active: bool = Field(default=True, sa_column_kwargs={"server_default": "true"})
     created_at: Optional[datetime] = Field(
@@ -51,12 +56,6 @@ class Car(SQLModel, table=True):
     image: str | None = Field(default=None)
 
     # Relationship
-    driver_id: uuid.UUID = Field(
-        foreign_key="users.id",  # aponta direto pro User
-        nullable=False,
-        index=True,
-        unique=True,  # unique=True aqui garante 1:1 no banco
-    )
     driver: Optional["User"] = Relationship(
         back_populates="car",
         sa_relationship_kwargs={"foreign_keys": "[Car.driver_id]"},
