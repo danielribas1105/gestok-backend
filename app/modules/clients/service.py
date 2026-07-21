@@ -1,39 +1,17 @@
+import uuid
+
+from fastapi import HTTPException
 from fastapi_async_sqlalchemy import db
 from sqlalchemy import func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.modules.clients.model import Client
-from app.modules.clients.schema import ClientCreate
+from app.modules.clients.schema import ClientCreate, ClientUpdate
 
 
-async def get_clients_paginated(
-    db: AsyncSession, page: int = 1, page_size: int = 20, search: str | None = None
-):
-    query = select(Client)
-    count_query = select(func.count()).select_from(Client)
-
-    if search:
-        search_filter = or_(
-            Client.cod_client.ilike(f"%{search}%"),  # type: ignore
-            Client.client.ilike(f"%{search}%"),  # type: ignore
-        )
-        query = query.where(search_filter)
-        count_query = count_query.where(search_filter)
-
-    query = query.order_by(func.lower(Client.cod_client))
-    total = await db.scalar(count_query) or 0
-
-    offset = (page - 1) * page_size
-    result = await db.execute(query.offset(offset).limit(page_size))
-    clients = result.scalars().all()
-
-    return {
-        "clients": clients,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size if total > 0 else 0,
-    }
+async def list_clients(offset: int = 0, limit: int = 20) -> list[Client]:
+    result = await db.session.execute(select(Client).offset(offset).limit(limit))
+    return result.scalars().all()
 
 
 async def create_client(data: ClientCreate) -> Client:
@@ -44,20 +22,28 @@ async def create_client(data: ClientCreate) -> Client:
     return client
 
 
-async def get_client_by_id(id) -> Client | None:
-    print(f"🔍 Buscando cliente com id={id}")
-    session = db.session
-    print(f"Sessão ativa: {session}")
+async def get_client_by_id(client_id: uuid.UUID) -> Client | None:
+    client = await db.session.execute(select(Client).where(Client.id == client_id))
+    return client.scalars().first()
 
-    stmt = select(Client).where(Client.id == id)
-    print(f"SQL gerado: {stmt}")
 
-    # TODO - Caso o cliente não exista na base, inserir novo cliente
-    result = await session.execute(stmt)
-    client = result.scalars().first()
+async def update(client_id: uuid.UUID, data: ClientUpdate) -> Client:
+    client = await get_client_by_id(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(client, field, value)
+    await db.session.commit()
+    await db.session.refresh(client)
+    return client
 
-    print(f"Resultado da query: {client}")
-    return client.client
+
+async def delete(client_id: uuid.UUID) -> None:
+    client = await get_client_by_id(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    await db.session.delete(client)
+    await db.session.commit()
 
 
 async def get_client_by_name(client) -> Client | None:
