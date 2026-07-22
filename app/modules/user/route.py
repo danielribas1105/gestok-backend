@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 
 from app.modules.auth.service import get_current_user
@@ -35,6 +37,14 @@ async def register_user(data: UserCreate):
 
 
 # 3. Rotas com parâmetro dinâmico por último
+@router.get("/{user_id}", response_model=UserResponse)
+async def get_user(user_id: uuid.UUID, user: User = Depends(get_current_user)):
+    user = await service.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    return user
+
+
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_profile(
     user_id: str,
