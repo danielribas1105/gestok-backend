@@ -4,7 +4,7 @@ import uuid
 from pydantic import BaseModel, ConfigDict
 
 from app.modules.car.model import CarFuel
-from app.modules.drivers.schema import DriverProfileResponse
+from app.modules.drivers.schema import DriverRead
 
 
 class DriverInfo(BaseModel):
@@ -12,7 +12,7 @@ class DriverInfo(BaseModel):
     name: str
     email: str
     phone: str | None = None
-    driver_profile: Optional[DriverProfileResponse] = None
+    driver_profile: Optional[DriverRead] = None
 
     model_config = ConfigDict(from_attributes=True)
 

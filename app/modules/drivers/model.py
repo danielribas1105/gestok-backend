@@ -1,12 +1,13 @@
 import enum
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 from sqlmodel import Relationship, SQLModel, Field
-from sqlalchemy import Column, DateTime, String, func
+from sqlalchemy import Column, DateTime, String, func, text
 
 if TYPE_CHECKING:
-    from app.modules.user.model import User
+    from app.modules.car.model import Car
+    from app.modules.delivery.model import Delivery
 
 
 class TypeLicense(str, enum.Enum):
@@ -17,15 +18,18 @@ class TypeLicense(str, enum.Enum):
     E = "E"
 
 
-class DriverProfile(SQLModel, table=True):
-    __tablename__ = "driver_profiles"
+class Driver(SQLModel, table=True):
+    __tablename__ = "drivers"  # type: ignore
 
-    # A PK é também a FK para users — isso garante 1:1 no banco
-    user_id: uuid.UUID = Field(
-        foreign_key="users.id",
-        primary_key=True,  # PK + FK = 1:1 garantido
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
-    license: str = Field()
+    name: str
+    cpf: Optional[str] = Field(default=None, nullable=True)
+    phone: Optional[str] = Field(default=None, nullable=True)
+    license: Optional[str] = Field(default=None, nullable=True)
     type: TypeLicense = Field(
         default=TypeLicense.B,
         sa_column=Column(
@@ -34,9 +38,16 @@ class DriverProfile(SQLModel, table=True):
     )
     validity: Optional[datetime] = Field(
         default=None,
-        sa_column=Column(DateTime(timezone=True), onupdate=func.now()),
+        sa_column=Column(DateTime(timezone=True)),
     )
     ear: Optional[bool] = Field(default=True)
+    active: bool = Field(default=True)
+    created_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=func.now()),
+    )
+    image: Optional[str] = Field(default=None, nullable=True)
 
     # Relationship
-    user: Optional["User"] = Relationship(back_populates="driver_profile")
+    car: Optional["Car"] = Relationship(back_populates="driver")
+    deliveries: List["Delivery"] = Relationship(back_populates="driver")

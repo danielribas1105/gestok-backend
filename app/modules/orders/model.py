@@ -5,10 +5,11 @@ import uuid
 from sqlalchemy import Column, DateTime, String, func, text
 from sqlmodel import Relationship, SQLModel, Field
 
-
 if TYPE_CHECKING:
+    from app.modules.delivery.model import Delivery
     from app.modules.inventory.model import StockMovement
     from app.modules.car.model import Car
+    from app.modules.salesperson.model import Salesperson
     from app.modules.clients.model import Client
     from app.modules.user.model import User
     from app.modules.products.model import Product
@@ -22,8 +23,9 @@ class OrderType(str, enum.Enum):
 class OrderStatus(str, enum.Enum):
     PENDING = "pending"
     PROCESSED = "processed"
+    BLOCKED = "blocked"
+    IN_TRANSIT = "in_transit"
     CANCELED = "canceled"
-    INTRANSIT = "in_transit"
     CONCLUDED = "concluded"
 
 
@@ -54,8 +56,19 @@ class Order(SQLModel, table=True):
         sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
     code: str = Field(sa_column_kwargs={"unique": True, "index": True})
+
     client_id: uuid.UUID = Field(foreign_key="clients.id", nullable=False, index=True)
     car_id: uuid.UUID = Field(foreign_key="cars.id", nullable=False, index=True)
+    saller_id: uuid.UUID = Field(
+        foreign_key="salesperson.id", nullable=False, index=True
+    )
+    supervisor_id: uuid.UUID = Field(
+        foreign_key="salesperson.id", nullable=False, index=True
+    )
+    manager_id: uuid.UUID = Field(
+        foreign_key="salesperson.id", nullable=False, index=True
+    )
+
     created_by: uuid.UUID = Field(foreign_key="users.id", nullable=False, index=True)
     observations: Optional[str] = Field(default=None)
     type: OrderType = Field(
@@ -88,7 +101,19 @@ class Order(SQLModel, table=True):
     )
 
     # Relationship
-    car: Optional["Car"] = Relationship(back_populates="car_orders")
+    saller: Optional["Salesperson"] = Relationship(
+        back_populates="saller_orders",
+        sa_relationship_kwargs={"foreign_keys": "[Order.saller_id]"},
+    )
+    supervisor: Optional["Salesperson"] = Relationship(
+        back_populates="supervisor_orders",
+        sa_relationship_kwargs={"foreign_keys": "[Order.supervisor_id]"},
+    )
+    manager: Optional["Salesperson"] = Relationship(
+        back_populates="manager_orders",
+        sa_relationship_kwargs={"foreign_keys": "[Order.manager_id]"},
+    )
+    delivery: Optional["Delivery"] = Relationship(back_populates="order")
     items: List["OrderItem"] = Relationship(back_populates="order")
     stock_movements: List["StockMovement"] = Relationship(back_populates="order")
     client: Optional["Client"] = Relationship(

@@ -13,10 +13,12 @@ from app.config import settings
 from app.modules.auth.model import UserSession
 from app.modules.car.model import Car
 from app.modules.clients.model import Client
-from app.modules.drivers.model import DriverProfile
+from app.modules.delivery.model import Delivery
+from app.modules.drivers.model import Driver
 from app.modules.inventory.model import Inventory
 from app.modules.orders.model import Order
 from app.modules.products.model import Product
+from app.modules.salesperson.model import Salesperson
 from app.modules.user.model import User
 
 # this is the Alembic Config object, which provides
