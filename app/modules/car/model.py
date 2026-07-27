@@ -6,8 +6,8 @@ from sqlmodel import Relationship, SQLModel, Field
 from sqlalchemy import Column, DateTime, String, func, text
 
 if TYPE_CHECKING:
-    from app.modules.user.model import User
-    from app.modules.orders.model import Order
+    from app.modules.drivers.model import Driver
+    from app.modules.delivery.model import Delivery
 
 
 class CarFuel(str, enum.Enum):
@@ -30,7 +30,7 @@ class Car(SQLModel, table=True):
     model: str = Field()
     plate: str = Field(sa_column_kwargs={"unique": True, "index": True})
     driver_id: uuid.UUID = Field(
-        foreign_key="users.id",
+        foreign_key="drivers.id",
         nullable=False,
         index=True,
         unique=True,
@@ -56,8 +56,5 @@ class Car(SQLModel, table=True):
     image: str | None = Field(default=None)
 
     # Relationship
-    driver: Optional["User"] = Relationship(
-        back_populates="car",
-        sa_relationship_kwargs={"foreign_keys": "[Car.driver_id]"},
-    )
-    car_orders: List["Order"] = Relationship(back_populates="car")
+    driver: Optional["Driver"] = Relationship(back_populates="car")
+    deliveries: List["Delivery"] = Relationship(back_populates="car")

@@ -3,7 +3,6 @@ from fastapi_async_sqlalchemy import db
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.modules.drivers.model import DriverProfile
 from app.modules.user.model import User, UserProfile
 from app.modules.user.schema import UserCreate, UserUpdate
 from app.utils.security import get_hash_password
@@ -15,27 +14,27 @@ def _user_with_driver():
 
 
 async def list_users(offset: int = 0, limit: int = 20) -> list[User]:
-    result = await db.session.execute(_user_with_driver().offset(offset).limit(limit))
+    result = await db.session.execute(select(User).offset(offset).limit(limit))
     return result.scalars().all()
 
 
-async def list_drivers(offset: int = 0, limit: int = 20) -> list[User]:
+""" async def list_drivers(offset: int = 0, limit: int = 20) -> list[User]:
     result = await db.session.execute(
         _user_with_driver()
         .where(User.profile == UserProfile.DRIVER)
         .offset(offset)
         .limit(limit)
     )
-    return result.scalars().all()
+    return result.scalars().all() """
 
 
 async def get_user_by_id(user_id: str) -> User | None:
-    result = await db.session.execute(_user_with_driver().where(User.id == user_id))
+    result = await db.session.execute(select(User).where(User.id == user_id))
     return result.scalars().first()
 
 
 async def get_user_by_email(email: str) -> User | None:
-    result = await db.session.execute(_user_with_driver().where(User.email == email))
+    result = await db.session.execute(select(User).where(User.email == email))
     return result.scalars().first()
 
 
@@ -50,17 +49,6 @@ async def create_user(data: UserCreate) -> User:
 
     user = User(**dump)
     db.session.add(user)
-    await db.session.flush()  # gera user.id sem fechar a transação
-
-    if user.profile == UserProfile.DRIVER:
-        if not data.driver:
-            raise HTTPException(
-                status_code=422,
-                detail="Dados do motorista são obrigatórios para o perfil 'driver'",
-            )
-        profile = DriverProfile(user_id=user.id, **data.driver.model_dump())
-        db.session.add(profile)
-
     await db.session.commit()
     ## await db.session.refresh(user)
     # re-fetch com eager load para retornar driver_profile populado
@@ -79,17 +67,6 @@ async def update_user(user_id: str, data: UserUpdate) -> User:
 
     for field, value in dump.items():
         setattr(user, field, value)
-
-    # ── Trata driver_profile ──────────────────────────────
-    if data.driver is not None:
-        if user.driver_profile:
-            # atualiza campos existentes
-            for field, value in data.driver.model_dump(exclude_unset=True).items():
-                setattr(user.driver_profile, field, value)
-        else:
-            # cria se ainda não existe (ex: perfil mudou para driver)
-            profile = DriverProfile(user_id=user.id, **data.driver.model_dump())
-            db.session.add(profile)
 
     await db.session.commit()
     ## await db.session.refresh(user)

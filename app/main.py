@@ -6,7 +6,6 @@ from app import router
 from app.config import settings
 from app.modules.fleet.websocket import fleet_ws
 
-
 app = FastAPI(
     title="GestOk API",
     description="API GestOk Web Application",
@@ -33,9 +32,9 @@ app.add_middleware(
 )
 
 
-@app.get("/", tags=["Health"])
+@app.get("/status", tags=["Health"])
 def health_check():
-    return {"status API": "ok"}
+    return {"status_API": "online"}
 
 
 @app.websocket("/ws/fleet")
