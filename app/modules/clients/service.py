@@ -8,7 +8,9 @@ from app.modules.clients.schema import ClientCreate, ClientUpdate
 
 
 async def list_clients(offset: int = 0, limit: int = 20) -> list[Client]:
-    result = await db.session.execute(select(Client).offset(offset).limit(limit))
+    result = await db.session.execute(
+        select(Client).offset(offset).limit(limit).order_by(Client.name)
+    )
     return result.scalars().all()
 
 

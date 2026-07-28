@@ -10,7 +10,9 @@ from app.modules.products.schema import ProductCreate, ProductUpdate
 
 
 async def list_products(offset: int = 0, limit: int = 20) -> list[Product]:
-    result = await db.session.execute(select(Product).offset(offset).limit(limit))
+    result = await db.session.execute(
+        select(Product).offset(offset).limit(limit).order_by(Product.description)
+    )
     return result.scalars().all()
 
 

@@ -13,15 +13,16 @@ from app.modules.user.model import User
 async def list_cars(offset: int = 0, limit: int = 20) -> list[Car]:
     result = await db.session.execute(
         select(Car)
-        .options(selectinload(Car.driver).selectinload(User.driver_profile))
+        .options(selectinload(Car.driver))
         .offset(offset)
         .limit(limit)
+        .order_by(Car.plate)
     )
-    cars = result.scalars().all()
-    return cars
+    return result.scalars().all()
 
 
 async def create_car(data: CarCreate) -> Car:
+    print(f"car {data}")
     car = Car(**data.model_dump())
     db.session.add(car)
     try:
@@ -37,9 +38,7 @@ async def create_car(data: CarCreate) -> Car:
 
 async def get_car_by_id(car_id: uuid.UUID) -> Car | None:
     result = await db.session.execute(
-        select(Car)
-        .options(selectinload(Car.driver).selectinload(User.driver_profile))
-        .where(Car.id == car_id)
+        select(Car).options(selectinload(Car.driver)).where(Car.id == car_id)
     )
     return result.scalars().first()
 
