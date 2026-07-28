@@ -14,7 +14,9 @@ def _user_with_driver():
 
 
 async def list_users(offset: int = 0, limit: int = 20) -> list[User]:
-    result = await db.session.execute(select(User).offset(offset).limit(limit))
+    result = await db.session.execute(
+        select(User).offset(offset).limit(limit).order_by(User.name)
+    )
     return result.scalars().all()
 
 

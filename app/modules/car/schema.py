@@ -7,16 +7,6 @@ from app.modules.car.model import CarFuel
 from app.modules.drivers.schema import DriverRead
 
 
-class DriverInfo(BaseModel):
-    id: uuid.UUID
-    name: str
-    email: str
-    phone: str | None = None
-    driver_profile: Optional[DriverRead] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class CarCreate(BaseModel):
     model: str
     plate: str
@@ -59,6 +49,6 @@ class CarResponse(BaseModel):
     active: bool
     created_at: datetime | None = None
     image: str | None = None
-    driver: Optional[DriverInfo] = None
+    driver: Optional[DriverRead] = None
 
     model_config = ConfigDict(from_attributes=True)
