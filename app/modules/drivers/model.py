@@ -26,6 +26,7 @@ class Driver(SQLModel, table=True):
         primary_key=True,
         sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
+    code: str = Field(sa_column_kwargs={"unique": True, "index": True})
     name: str
     cpf: Optional[str] = Field(default=None, nullable=True)
     phone: Optional[str] = Field(default=None, nullable=True)
