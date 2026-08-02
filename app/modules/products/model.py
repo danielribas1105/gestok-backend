@@ -18,6 +18,9 @@ class Product(SQLModel, table=True):
         sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
     code: str = Field(sa_column_kwargs={"unique": True, "index": True})
+    name_code: str = Field(
+        sa_column_kwargs={"unique": True, "index": True}
+    )  # gerado via generate_name_code() na ingestão
     description: Optional[str] = Field(default=None)
     unit: str = Field(nullable=False)
     value: float = Field(nullable=False)

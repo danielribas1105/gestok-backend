@@ -3,7 +3,7 @@ import enum
 from typing import TYPE_CHECKING, List, Optional
 import uuid
 from sqlalchemy import Column, DateTime, String, func, text
-from sqlmodel import Relationship, SQLModel, Field
+from sqlmodel import Relationship, SQLModel, Field, UniqueConstraint
 
 if TYPE_CHECKING:
     from app.modules.delivery.model import Delivery
@@ -15,9 +15,10 @@ if TYPE_CHECKING:
     from app.modules.products.model import Product
 
 
-class OrderType(str, enum.Enum):
-    IN = "in"
-    OUT = "out"
+class OrderOperationType(str, enum.Enum):
+    SALE = "sale"
+    TASTING = "tasting"
+    BONUS = "bonus"
 
 
 class OrderStatus(str, enum.Enum):
@@ -39,8 +40,12 @@ class OrderItem(SQLModel, table=True):
     )
     order_id: uuid.UUID = Field(foreign_key="orders.id", nullable=False, index=True)
     product_id: uuid.UUID = Field(foreign_key="products.id", nullable=False, index=True)
+    item_number: Optional[str] = Field(
+        default=None
+    )  # ITEM da planilha, mantém a ordem original
     quantity: int = Field(nullable=False)
     total_price: float = Field(nullable=False)
+    row_hash: str = Field(sa_column_kwargs={"unique": True, "index": True})
 
     # Relationship
     order: Optional["Order"] = Relationship(back_populates="items")
@@ -49,16 +54,32 @@ class OrderItem(SQLModel, table=True):
 
 class Order(SQLModel, table=True):
     __tablename__ = "orders"
+    __table_args__ = (
+        UniqueConstraint("branch_code", "code", name="uq_orders_branch_code"),
+    )
 
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
         primary_key=True,
         sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
-    code: str = Field(sa_column_kwargs={"unique": True, "index": True})
+    branch_code: str = Field(index=True)  # FILIAL
+    code: str = Field(index=True)  # PEDIDO
+
+    issued_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )  # EMISSÃO PEDIDO — data de origem no ERP, distinta de created_at (data do INSERT)
+
+    release_reason: Optional[str] = Field(default=None)  # MOTIVO DE LIBERAÇÃO
+    released_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )  # combina DT + HR LIBERAÇÃO em um único timestamp com timezone
 
     client_id: uuid.UUID = Field(foreign_key="clients.id", nullable=False, index=True)
     car_id: uuid.UUID = Field(foreign_key="cars.id", nullable=False, index=True)
+    store_code: Optional[str] = Field(
+        default=None, index=True
+    )  # LOJA — atributo do pedido
     saller_id: uuid.UUID = Field(
         foreign_key="salesperson.id", nullable=False, index=True
     )
@@ -71,12 +92,12 @@ class Order(SQLModel, table=True):
 
     created_by: uuid.UUID = Field(foreign_key="users.id", nullable=False, index=True)
     observations: Optional[str] = Field(default=None)
-    type: OrderType = Field(
-        default=OrderType.OUT,
+    operationtype: OrderOperationType = Field(
+        default=OrderOperationType.SALE,
         sa_column=Column(
             String(10),
             nullable=False,
-            server_default=OrderType.OUT.value,
+            server_default=OrderOperationType.SALE.value,
         ),
     )
     status: OrderStatus = Field(

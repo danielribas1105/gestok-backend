@@ -36,6 +36,7 @@ class OrderItemResponse(OrderItemBase):
 
 
 class OrderBase(BaseModel):
+    branch_code: str
     code: str
     type: str
     observations: Optional[str] = None
@@ -94,6 +95,7 @@ class OrderResponseSummary(BaseModel):
     """Versão resumida para listagens (sem carregar items)."""
 
     id: uuid.UUID
+    branch_code: str
     code: str
     type: str
     status: OrderStatus

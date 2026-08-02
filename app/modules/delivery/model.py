@@ -33,6 +33,12 @@ class Delivery(SQLModel, table=True):
     driver_id: uuid.UUID = Field(foreign_key="drivers.id", nullable=False, index=True)
     car_id: uuid.UUID = Field(foreign_key="cars.id", nullable=False, index=True)
 
+    invoice_number: Optional[str] = Field(default=None, index=True)  # Invoice number
+    cargo_weight: Optional[str] = Field(default=None, index=True)  # Cargo weight
+    departed_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )  # Load out date
+
     status: DeliveryStatus = Field(
         default=DeliveryStatus.PENDING,
         sa_column=Column(
