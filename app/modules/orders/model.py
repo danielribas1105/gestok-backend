@@ -66,7 +66,7 @@ class Order(SQLModel, table=True):
     issued_at: Optional[datetime] = Field(
         default=None, sa_column=Column(DateTime(timezone=True))
     )  # EMISSÃO PEDIDO — data de origem no ERP, distinta de created_at (data do INSERT)
-    operationtype: OrderOperationType = Field(
+    operation_type: OrderOperationType = Field(
         default=OrderOperationType.SALE,
         sa_column=Column(
             String(10),
