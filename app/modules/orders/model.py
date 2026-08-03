@@ -8,10 +8,8 @@ from sqlmodel import Relationship, SQLModel, Field, UniqueConstraint
 if TYPE_CHECKING:
     from app.modules.delivery.model import Delivery
     from app.modules.inventory.model import StockMovement
-    from app.modules.car.model import Car
     from app.modules.salesperson.model import Salesperson
-    from app.modules.clients.model import Client
-    from app.modules.user.model import User
+    from app.modules.clients.model import Store, Client
     from app.modules.products.model import Product
 
 
@@ -65,21 +63,24 @@ class Order(SQLModel, table=True):
     )
     branch_code: str = Field(index=True)  # FILIAL
     code: str = Field(index=True)  # PEDIDO
-
     issued_at: Optional[datetime] = Field(
         default=None, sa_column=Column(DateTime(timezone=True))
     )  # EMISSÃO PEDIDO — data de origem no ERP, distinta de created_at (data do INSERT)
-
+    operationtype: OrderOperationType = Field(
+        default=OrderOperationType.SALE,
+        sa_column=Column(
+            String(10),
+            nullable=False,
+            server_default=OrderOperationType.SALE.value,
+        ),
+    )
     release_reason: Optional[str] = Field(default=None)  # MOTIVO DE LIBERAÇÃO
     released_at: Optional[datetime] = Field(
         default=None, sa_column=Column(DateTime(timezone=True))
     )  # combina DT + HR LIBERAÇÃO em um único timestamp com timezone
 
     client_id: uuid.UUID = Field(foreign_key="clients.id", nullable=False, index=True)
-    car_id: uuid.UUID = Field(foreign_key="cars.id", nullable=False, index=True)
-    store_code: Optional[str] = Field(
-        default=None, index=True
-    )  # LOJA — atributo do pedido
+    store_id: uuid.UUID = Field(foreign_key="stores.id", nullable=False, index=True)
     saller_id: uuid.UUID = Field(
         foreign_key="salesperson.id", nullable=False, index=True
     )
@@ -89,17 +90,6 @@ class Order(SQLModel, table=True):
     manager_id: uuid.UUID = Field(
         foreign_key="salesperson.id", nullable=False, index=True
     )
-
-    created_by: uuid.UUID = Field(foreign_key="users.id", nullable=False, index=True)
-    observations: Optional[str] = Field(default=None)
-    operationtype: OrderOperationType = Field(
-        default=OrderOperationType.SALE,
-        sa_column=Column(
-            String(10),
-            nullable=False,
-            server_default=OrderOperationType.SALE.value,
-        ),
-    )
     status: OrderStatus = Field(
         default=OrderStatus.PENDING,
         sa_column=Column(
@@ -108,6 +98,7 @@ class Order(SQLModel, table=True):
             server_default=OrderStatus.PENDING.value,
         ),
     )
+    observations: Optional[str] = Field(default=None)
     created_at: Optional[datetime] = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), server_default=func.now()),
@@ -141,7 +132,4 @@ class Order(SQLModel, table=True):
         back_populates="client_orders",
         sa_relationship_kwargs={"foreign_keys": "[Order.client_id]"},
     )
-    creator: Optional["User"] = Relationship(
-        back_populates="created_orders",
-        sa_relationship_kwargs={"foreign_keys": "[Order.created_by]"},
-    )
+    store: Optional["Store"] = Relationship(back_populates="orders")

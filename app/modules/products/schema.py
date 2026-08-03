@@ -5,30 +5,29 @@ from pydantic import BaseModel, ConfigDict
 
 
 class ProductCreate(BaseModel):
-    code: str
-    description: str
+    code: Optional[str] = None
+    name: str
     unit: str
-    value: float
     active: bool = True
     image: Optional[str] = None
     updated_at: Optional[datetime] = None
 
 
 class ProductUpdate(BaseModel):
-    description: Optional[str] = None
+    code: Optional[str] = None
+    name: Optional[str] = None
     unit: Optional[str] = None
-    value: Optional[float] = None
     active: Optional[bool] = None
     image: Optional[str] = None
     updated_at: Optional[datetime] | None = None
 
 
-class ProductResponse(BaseModel):
+class ProductRead(BaseModel):
     id: uuid.UUID
+    name_code: Optional[str] = None
     code: Optional[str] = None
-    description: Optional[str] = None
+    name: Optional[str] = None
     unit: Optional[str] = None
-    value: Optional[float] = None
     active: Optional[bool] = None
     image: Optional[str] = None
     created_at: datetime | None = None
@@ -37,7 +36,7 @@ class ProductResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class ProductReadWithStock(ProductResponse):
+class ProductReadWithStock(ProductRead):
     """
     Produto com a quantidade atual em estoque,
     resolvida via JOIN com Inventory.

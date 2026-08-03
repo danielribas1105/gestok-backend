@@ -24,10 +24,8 @@ class Salesperson(SQLModel, table=True):
         sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
     code: str = Field(unique=True, index=True)
-    name: str
+    name: Optional[str] = Field(default=None, nullable=True)
     trade_name: Optional[str] = Field(default=None, nullable=True)
-    email: Optional[str] = Field(default=None, nullable=True)
-    cpf: Optional[str] = Field(default=None, nullable=True)
     phone: Optional[str] = Field(default=None, nullable=True)
     profile: SalespersonProfile = Field(
         default=SalespersonProfile.SELLER,
@@ -42,7 +40,6 @@ class Salesperson(SQLModel, table=True):
         default=None,
         sa_column=Column(DateTime(timezone=True), server_default=func.now()),
     )
-    image: Optional[str] = Field(default=None, nullable=True)
 
     # Relationship
     saller_orders: List["Order"] = Relationship(

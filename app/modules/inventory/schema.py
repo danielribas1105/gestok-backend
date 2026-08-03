@@ -3,7 +3,7 @@ from typing import Optional
 import uuid
 from pydantic import BaseModel, ConfigDict
 
-from app.modules.products.schema import ProductResponse
+from app.modules.products.schema import ProductRead
 
 
 class InventoryBase(BaseModel):
@@ -27,16 +27,16 @@ class InventoryUpdate(BaseModel):
     reason: Optional[str] = None  # auditoria do ajuste
 
 
-class InventoryResponse(InventoryBase):
+class InventoryRead(InventoryBase):
     id: uuid.UUID
     last_updated_at: Optional[datetime]
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class InventoryResponseWithProduct(InventoryResponse):
+class InventoryReadWithProduct(InventoryRead):
     """Visão completa do estoque com dados do produto embutidos."""
 
-    product: ProductResponse
+    product: ProductRead
 
     model_config = ConfigDict(from_attributes=True)

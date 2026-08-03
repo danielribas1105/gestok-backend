@@ -1,12 +1,9 @@
 import enum
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import Optional
 from sqlalchemy import Column, DateTime, String, func, text
-from sqlmodel import Field, Relationship, SQLModel
-
-if TYPE_CHECKING:
-    from app.modules.orders.model import Order
+from sqlmodel import Field, SQLModel
 
 
 class UserProfile(str, enum.Enum):
@@ -47,9 +44,3 @@ class User(SQLModel, table=True):
         sa_column=Column(DateTime(timezone=True), onupdate=func.now()),
     )
     image: Optional[str] = Field(default=None, nullable=True)
-
-    # Relationship
-    created_orders: List["Order"] = Relationship(
-        back_populates="creator",
-        sa_relationship_kwargs={"foreign_keys": "[Order.created_by]"},
-    )
