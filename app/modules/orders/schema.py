@@ -3,7 +3,7 @@ from typing import List, Optional
 import uuid
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from app.modules.orders.model import OrderStatus
+from app.modules.orders.model import OrderStatus, OrderOperationType
 
 # ─────────────────────────────────────────────
 # ORDER ITEM
@@ -17,7 +17,8 @@ class OrderItemBase(BaseModel):
 
 
 class OrderItemCreate(OrderItemBase):
-    pass
+    item_number: Optional[str] = None
+    # row_hash não é enviado pelo cliente — calculado no backend
 
 
 class OrderItemUpdate(BaseModel):
@@ -25,9 +26,21 @@ class OrderItemUpdate(BaseModel):
     total_price: Optional[float] = None
 
 
-class OrderItemResponse(OrderItemBase):
+class OrderItemRead(OrderItemBase):
     id: uuid.UUID
     order_id: uuid.UUID
+    item_number: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderItemReadNested(OrderItemBase):
+    """OrderItem embutido na leitura de uma Order (sem order_id redundante)."""
+
+    id: uuid.UUID
+    item_number: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ─────────────────────────────────────────────
@@ -38,17 +51,22 @@ class OrderItemResponse(OrderItemBase):
 class OrderBase(BaseModel):
     branch_code: str
     code: str
-    type: str
+    operationtype: OrderOperationType = OrderOperationType.SALE
     observations: Optional[str] = None
 
 
 class OrderCreate(OrderBase):
     """
     Ao criar uma Order, os itens já devem ser enviados juntos.
-    O back-end cria a Order e os OrderItems em uma única transação,
-    e em seguida atualiza o Inventory conforme o tipo (entrada/saída).
+    O back-end cria a Order e os OrderItems em uma única transação.
     """
 
+    client_id: uuid.UUID
+    store_id: uuid.UUID
+    saller_id: uuid.UUID
+    supervisor_id: uuid.UUID
+    manager_id: uuid.UUID
+    issued_at: Optional[datetime] = None
     items: List[OrderItemCreate]
 
     @field_validator("items")
@@ -60,33 +78,35 @@ class OrderCreate(OrderBase):
 
 
 class OrderUpdate(BaseModel):
-    type: Optional[str] = None
+    operationtype: Optional[OrderOperationType] = None
     observations: Optional[str] = None
     status: Optional[OrderStatus] = None
+    release_reason: Optional[str] = None
+    released_at: Optional[datetime] = None
 
 
 class OrderStatusUpdate(BaseModel):
     """Usado para transições de status isoladas (ex: confirmar, cancelar)."""
 
     status: OrderStatus
-
-
-class OrderItemResponseNested(OrderItemBase):
-    """OrderItem embutido na leitura de uma Order (sem order_id redundante)."""
-
-    id: uuid.UUID
-    product_id: uuid.UUID
-
-    model_config = ConfigDict(from_attributes=True)
+    release_reason: Optional[str] = None  # obrigatório na prática ao sair de BLOCKED
 
 
 class OrderResponse(OrderBase):
     id: uuid.UUID
     status: OrderStatus
-    active: bool
-    created_at: Optional[datetime]
-    processed_at: Optional[datetime]
-    items: List[OrderItemResponseNested] = []
+    client_id: uuid.UUID
+    store_id: uuid.UUID
+    saller_id: uuid.UUID
+    supervisor_id: uuid.UUID
+    manager_id: uuid.UUID
+    issued_at: Optional[datetime] = None
+    release_reason: Optional[str] = None
+    released_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    processed_at: Optional[datetime] = None
+    items: List[OrderItemReadNested] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -97,9 +117,10 @@ class OrderResponseSummary(BaseModel):
     id: uuid.UUID
     branch_code: str
     code: str
-    type: str
+    operationtype: OrderOperationType
     status: OrderStatus
-    active: bool
-    created_at: Optional[datetime]
+    client_id: uuid.UUID
+    store_id: uuid.UUID
+    created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -8,9 +8,10 @@ from app.modules.drivers.model import TypeLicense
 
 class DriverCreate(BaseModel):
     name: str
+    code: Optional[str] = None
     cpf: Optional[str] = None
     phone: Optional[str] = None
-    license: str
+    license: Optional[str] = None
     type: TypeLicense = TypeLicense.B
     validity: Optional[datetime] = None
     ear: Optional[bool] = None
@@ -20,6 +21,7 @@ class DriverCreate(BaseModel):
 
 class DriverUpdate(BaseModel):
     name: Optional[str] = None
+    code: Optional[str] = None
     cpf: Optional[str] = None
     phone: Optional[str] = None
     license: Optional[str] = None
@@ -32,12 +34,13 @@ class DriverUpdate(BaseModel):
 class DriverRead(BaseModel):
     id: uuid.UUID
     name: str
+    code: str | None = None
     cpf: str | None = None
     phone: str | None = None
-    license: str
+    license: str | None = None
     type: TypeLicense
     validity: datetime | None = None
-    ear: bool
+    ear: bool | None = None
     active: bool
     created_at: datetime | None = None
 

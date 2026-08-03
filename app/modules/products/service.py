@@ -3,23 +3,32 @@ import uuid
 from fastapi import HTTPException
 from fastapi_async_sqlalchemy import db
 from sqlalchemy import exists, select
+from sqlalchemy.exc import IntegrityError
 from app.modules.inventory.model import StockMovement
 from app.modules.orders.model import OrderItem
 from app.modules.products.model import Product
 from app.modules.products.schema import ProductCreate, ProductUpdate
+from app.utils.functions import generate_name_code
 
 
 async def list_products(offset: int = 0, limit: int = 20) -> list[Product]:
     result = await db.session.execute(
-        select(Product).offset(offset).limit(limit).order_by(Product.description)
+        select(Product).offset(offset).limit(limit).order_by(Product.name)
     )
     return result.scalars().all()
 
 
 async def create_product(data: ProductCreate) -> Product:
-    product = Product(**data.model_dump())
+    product = Product(**data.model_dump(), name_code=generate_name_code(data.name))
     db.session.add(product)
-    await db.session.commit()
+    try:
+        await db.session.commit()
+    except IntegrityError:
+        await db.session.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe um produto com essa descrição (name_code duplicado)",
+        )
     await db.session.refresh(product)
     return product
 
@@ -33,9 +42,22 @@ async def update(product_id: uuid.UUID, data: ProductUpdate) -> Product:
     product = await get_product_by_id(product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
-    for field, value in data.model_dump(exclude_unset=True).items():
+
+    update_data = data.model_dump(exclude_unset=True)
+    if "name" in update_data:
+        update_data["name_code"] = generate_name_code(update_data["name"])
+
+    for field, value in update_data.items():
         setattr(product, field, value)
-    await db.session.commit()
+
+    try:
+        await db.session.commit()
+    except IntegrityError:
+        await db.session.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe um produto com essa descrição (name_code duplicado)",
+        )
     await db.session.refresh(product)
     return product
 

@@ -7,21 +7,49 @@ from pydantic import BaseModel, ConfigDict
 class ClientCreate(BaseModel):
     code: str
     name: str
-    trade_name: str | None = None
-    cnpj: str | None = None
-    insc_e: str | None = None
-    phone: str | None = None
-    address: str | None = None
-    region: str | None = None
-    zip_code: str | None = None
-    city: str | None = None
-    state: str | None = None
-    contact: str | None = None
-    active: bool = True
 
 
 class ClientUpdate(BaseModel):
     name: Optional[str] = None
+
+
+class ClientRead(BaseModel):
+    id: uuid.UUID
+    code: str
+    name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ClientReadWithStores(ClientRead):
+    stores: list["StoreRead"] = []
+
+
+class ClientsSchema(BaseModel):
+    clients: list[ClientRead]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class StoreCreate(BaseModel):
+    code: str
+    trade_name: Optional[str] = None
+    cnpj: Optional[str] = None
+    insc_e: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    region: Optional[str] = None
+    zip_code: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    contact: Optional[str] = None
+    active: bool = True
+
+
+class StoreUpdate(BaseModel):
+    code: Optional[str] = None
     trade_name: Optional[str] = None
     cnpj: Optional[str] = None
     insc_e: Optional[str] = None
@@ -35,10 +63,10 @@ class ClientUpdate(BaseModel):
     active: Optional[bool] = None
 
 
-class ClientResponse(BaseModel):
+class StoreRead(BaseModel):
     id: uuid.UUID
+    client_id: uuid.UUID
     code: str
-    name: str
     trade_name: Optional[str] = None
     cnpj: Optional[str] = None
     insc_e: Optional[str] = None
@@ -55,9 +83,12 @@ class ClientResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class ClientsSchema(BaseModel):
-    clients: list[ClientResponse]
+class StoresSchema(BaseModel):
+    stores: list[StoreRead]
     total: int
     page: int
     page_size: int
     total_pages: int
+
+
+ClientReadWithStores.model_rebuild()

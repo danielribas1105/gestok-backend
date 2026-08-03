@@ -28,7 +28,7 @@ class UserUpdate(BaseModel):
     image: Optional[str] = None
 
 
-class UserResponse(BaseModel):
+class UserRead(BaseModel):
     id: uuid.UUID
     name: str
     email: str
