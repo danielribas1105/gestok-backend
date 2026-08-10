@@ -11,13 +11,13 @@ from app.modules.orders.model import OrderStatus, OrderOperationType
 
 
 class OrderItemBase(BaseModel):
-    product_id: uuid.UUID
     quantity: int
     total_price: float
+    item_number: Optional[str] = None
 
 
 class OrderItemCreate(OrderItemBase):
-    item_number: Optional[str] = None
+    product_id: uuid.UUID
     # row_hash não é enviado pelo cliente — calculado no backend
 
 
@@ -30,6 +30,7 @@ class OrderItemRead(OrderItemBase):
     id: uuid.UUID
     order_id: uuid.UUID
     item_number: Optional[str] = None
+    product_id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -39,6 +40,7 @@ class OrderItemReadNested(OrderItemBase):
 
     id: uuid.UUID
     item_number: Optional[str] = None
+    product_id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -51,8 +53,7 @@ class OrderItemReadNested(OrderItemBase):
 class OrderBase(BaseModel):
     branch_code: str
     code: str
-    operationtype: OrderOperationType = OrderOperationType.SALE
-    observations: Optional[str] = None
+    operation_type: OrderOperationType = OrderOperationType.SALE
 
 
 class OrderCreate(OrderBase):
@@ -68,6 +69,7 @@ class OrderCreate(OrderBase):
     manager_id: uuid.UUID
     issued_at: Optional[datetime] = None
     items: List[OrderItemCreate]
+    observations: Optional[str] = None
 
     @field_validator("items")
     @classmethod
@@ -124,3 +126,42 @@ class OrderResponseSummary(BaseModel):
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ─────────────────────────────────────────────
+# ORDER BATCH
+# ─────────────────────────────────────────────
+
+
+class OrderItemCreatePayload(OrderItemBase):
+    code: str
+    product_id: str
+
+
+class OrderCreatePayload(OrderBase):
+    release_reason: str | None
+    released_at: Optional[datetime] | None
+    client_id: str
+    store_id: str
+    saller_id: str
+    supervisor_id: str
+    manager_id: str
+    issued_at: Optional[datetime] | None
+    items: List[OrderItemCreatePayload]
+
+    @field_validator("released_at", "issued_at", mode="before")
+    @classmethod
+    def blank_to_none(cls, v):
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
+
+class BatchOrderError(BaseModel):
+    code: str
+    errors: list[str]
+
+
+class OrderBatchResponse(BaseModel):
+    created: list[OrderResponse]
+    failed: list[BatchOrderError]

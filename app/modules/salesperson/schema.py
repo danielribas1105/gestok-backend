@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+import uuid
 from pydantic import BaseModel, EmailStr
 
 from app.modules.salesperson.model import SalespersonProfile
@@ -12,19 +13,24 @@ class SalespersonCreate(BaseModel):
     email: EmailStr | None = None
     cpf: str | None = None
     phone: str | None = None
-    profile: SalespersonProfile.SELLER
+    profile: SalespersonProfile = SalespersonProfile.SELLER
     active: bool = True
 
 
 class SalespersonUpdate(BaseModel):
-    license: Optional[str] = None
     validity: Optional[datetime] = None
     ear: Optional[bool] = None
 
 
 class SalespersonRead(BaseModel):
-    license: str
-    validity: Optional[datetime] = None
-    ear: Optional[bool] = None
+    id: uuid.UUID
+    code: str
+    name: Optional[str] = None
+    trade_name: Optional[str] = None
+    email: Optional[str] = None
+    cpf: Optional[str] = None
+    phone: Optional[str] = None
+    profile: SalespersonProfile
+    active: bool
 
     model_config = {"from_attributes": True}
