@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 import uuid
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict
 
 from app.modules.salesperson.model import SalespersonProfile
 
@@ -10,16 +10,17 @@ class SalespersonCreate(BaseModel):
     code: str
     name: str
     trade_name: str | None = None
-    email: EmailStr | None = None
-    cpf: str | None = None
     phone: str | None = None
     profile: SalespersonProfile = SalespersonProfile.SELLER
     active: bool = True
 
 
 class SalespersonUpdate(BaseModel):
-    validity: Optional[datetime] = None
-    ear: Optional[bool] = None
+    name: Optional[str] = None
+    trade_name: Optional[str] = None
+    phone: Optional[str] = None
+    profile: Optional[SalespersonProfile] = None
+    active: Optional[bool] = None
 
 
 class SalespersonRead(BaseModel):
@@ -27,10 +28,9 @@ class SalespersonRead(BaseModel):
     code: str
     name: Optional[str] = None
     trade_name: Optional[str] = None
-    email: Optional[str] = None
-    cpf: Optional[str] = None
     phone: Optional[str] = None
     profile: SalespersonProfile
     active: bool
+    created_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)

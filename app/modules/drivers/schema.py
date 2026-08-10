@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 import uuid
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.modules.drivers.model import TypeLicense
 
@@ -44,4 +44,4 @@ class DriverRead(BaseModel):
     active: bool
     created_at: datetime | None = None
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)

@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Optional
+from pydantic import ConfigDict
 from sqlmodel import SQLModel
 from app.modules.delivery.model import DeliveryStatus
 
@@ -33,3 +34,5 @@ class DeliveryRead(SQLModel):
     confirmed_at: Optional[datetime]
     created_at: datetime
     updated_at: Optional[datetime]
+
+    model_config = ConfigDict(from_attributes=True)

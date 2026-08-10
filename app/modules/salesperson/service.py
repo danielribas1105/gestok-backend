@@ -32,10 +32,12 @@ async def get_salesperson_by_id(salesperson_id: uuid.UUID) -> Salesperson | None
     return salesperson.scalars().first()
 
 
-async def update(salesperson_id: uuid.UUID, data: SalespersonUpdate) -> Salesperson:
+async def update_salesperson(
+    salesperson_id: uuid.UUID, data: SalespersonUpdate
+) -> Salesperson:
     salesperson = await get_salesperson_by_id(salesperson_id)
     if not salesperson:
-        raise HTTPException(status_code=404, detail="Vendedor não encontrado")
+        raise HTTPException(status_code=404, detail="Vendedor/Gerente não encontrado")
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(salesperson, field, value)
     await db.session.commit()
@@ -43,9 +45,9 @@ async def update(salesperson_id: uuid.UUID, data: SalespersonUpdate) -> Salesper
     return salesperson
 
 
-async def delete(salesperson_id: uuid.UUID) -> None:
+async def delete_salesperson(salesperson_id: uuid.UUID) -> None:
     salesperson = await get_salesperson_by_id(salesperson_id)
     if not salesperson:
-        raise HTTPException(status_code=404, detail="Vendedor não encontrado")
+        raise HTTPException(status_code=404, detail="Vendedor/Gerente não encontrado")
     await db.session.delete(salesperson)
     await db.session.commit()

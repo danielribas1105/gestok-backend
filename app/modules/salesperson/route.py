@@ -2,7 +2,11 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from app.modules.auth.service import get_current_user
-from app.modules.salesperson.schema import SalespersonCreate, SalespersonRead
+from app.modules.salesperson.schema import (
+    SalespersonCreate,
+    SalespersonRead,
+    SalespersonUpdate,
+)
 from app.modules.salesperson import service
 from app.modules.user.model import User
 
@@ -31,3 +35,22 @@ async def get_salesperson(
     if not salesperson:
         raise HTTPException(status_code=404, detail="Vendedor não encontrado")
     return salesperson
+
+
+@router.put("/{salesperson_id}", response_model=SalespersonRead)
+async def update_salesperson(
+    salesperson_id: uuid.UUID,
+    data: SalespersonUpdate,
+    user: User = Depends(get_current_user),
+):
+    """
+    Update sallers, supervisors and managers
+    """
+    return await service.update_salesperson(salesperson_id, data)
+
+
+@router.delete("/{salesperson_id}", status_code=204)
+async def delete_salesperson(
+    salesperson_id: uuid.UUID, user: User = Depends(get_current_user)
+):
+    await service.delete_salesperson(salesperson_id)

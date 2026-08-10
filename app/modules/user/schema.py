@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 from app.modules.user.model import UserProfile
 
@@ -41,7 +41,7 @@ class UserRead(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Login schema

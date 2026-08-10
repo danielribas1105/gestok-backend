@@ -33,7 +33,7 @@ class ProductRead(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProductReadWithStock(ProductRead):
