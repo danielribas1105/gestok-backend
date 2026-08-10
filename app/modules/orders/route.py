@@ -1,9 +1,10 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from app.modules.auth.service import get_current_user
 from app.modules.user.model import User
 from app.modules.orders.schema import (
-    OrderCreate,
+    OrderBatchResponse,
+    OrderCreatePayload,
     OrderResponse,
     OrderUpdate,
 )
@@ -20,8 +21,19 @@ async def list_orders(
 
 
 @router.post("", response_model=OrderResponse, status_code=201)
-async def create_order(order: OrderCreate, user: User = Depends(get_current_user)):
+async def create_order(
+    order: OrderCreatePayload, user: User = Depends(get_current_user)
+):
     return await service.create_order(order)
+
+
+@router.post("/batch", response_model=OrderBatchResponse, status_code=201)
+async def create_orders_batch(
+    orders: list[OrderCreatePayload] = Body(..., embed=True),
+    user: User = Depends(get_current_user),
+):
+    created, failed = await service.create_orders_batch(orders)
+    return OrderBatchResponse(created=created, failed=failed)
 
 
 @router.get("/{order_id}", response_model=OrderResponse)
