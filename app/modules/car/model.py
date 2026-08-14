@@ -29,7 +29,7 @@ class Car(SQLModel, table=True):
     )
     plate: str = Field(sa_column_kwargs={"unique": True, "index": True})
     model: str = Field()
-    capacity: int = Field()
+    capacity: float = Field()
     driver_id: uuid.UUID = Field(
         foreign_key="drivers.id",
         nullable=False,

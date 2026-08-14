@@ -23,6 +23,7 @@ class Product(SQLModel, table=True):
     name: str = Field(nullable=False)
     code: Optional[str] = Field(default=None, nullable=True)
     unit: str = Field(nullable=False)
+    unit_weight: float = Field(nullable=True)
     active: bool = Field(default=True)
     created_at: Optional[datetime] = Field(
         default=None,
