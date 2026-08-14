@@ -10,7 +10,7 @@ from app.modules.drivers.schema import DriverRead
 class CarCreate(BaseModel):
     plate: str
     model: str
-    capacity: int
+    capacity: float
     driver_id: uuid.UUID
     manufacture: int | None = None
     km: int | None = None
@@ -24,7 +24,7 @@ class CarCreate(BaseModel):
 class CarUpdate(BaseModel):
     plate: Optional[str] = None
     model: Optional[str] = None
-    capacity: Optional[int] = None
+    capacity: Optional[float] = None
     driver_id: Optional[uuid.UUID] = None
     manufacture: Optional[int] = None
     km: Optional[int] = None
@@ -39,7 +39,7 @@ class CarRead(BaseModel):
     id: uuid.UUID
     plate: str
     model: str
-    capacity: int | None = None
+    capacity: float | None = None
     driver_id: uuid.UUID
     manufacture: int | None = None
     km: int | None = None

@@ -41,6 +41,10 @@ class OrderItemReadNested(OrderItemBase):
     id: uuid.UUID
     item_number: Optional[str] = None
     product_id: uuid.UUID
+    product_name_code: Optional[str] = None
+    product_name: Optional[str] = None
+    product_code: Optional[str] = None
+    product_weight: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -80,7 +84,7 @@ class OrderCreate(OrderBase):
 
 
 class OrderUpdate(BaseModel):
-    operationtype: Optional[OrderOperationType] = None
+    operation_type: Optional[OrderOperationType] = None
     observations: Optional[str] = None
     status: Optional[OrderStatus] = None
     release_reason: Optional[str] = None
@@ -110,6 +114,13 @@ class OrderResponse(OrderBase):
     processed_at: Optional[datetime] = None
     items: List[OrderItemReadNested] = []
 
+    # Campos resolvidos
+    client_name: Optional[str] = None
+    store_name: Optional[str] = None
+    saller_name: Optional[str] = None
+    supervisor_name: Optional[str] = None
+    manager_name: Optional[str] = None
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -119,7 +130,7 @@ class OrderResponseSummary(BaseModel):
     id: uuid.UUID
     branch_code: str
     code: str
-    operationtype: OrderOperationType
+    operation_type: OrderOperationType
     status: OrderStatus
     client_id: uuid.UUID
     store_id: uuid.UUID

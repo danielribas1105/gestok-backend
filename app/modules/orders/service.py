@@ -3,10 +3,11 @@ import hashlib
 import uuid
 from fastapi_async_sqlalchemy import db
 from sqlalchemy import tuple_
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from app.modules.clients.model import Client, Store
 from app.modules.orders.model import Order, OrderItem
-from app.modules.orders.schema import OrderCreatePayload, OrderUpdate
+from app.modules.orders.schema import OrderCreatePayload, OrderResponse, OrderUpdate
 from app.modules.products.model import Product
 from app.modules.salesperson.model import Salesperson, SalespersonProfile
 
@@ -284,7 +285,19 @@ async def create_orders_batch(
 
 
 async def list_orders(offset: int = 0, limit: int = 20) -> list[Order]:
-    result = await db.session.execute(select(Order).offset(offset).limit(limit))
+    result = await db.session.execute(
+        select(Order)
+        .options(
+            selectinload(Order.client),
+            selectinload(Order.store),
+            selectinload(Order.saller),
+            selectinload(Order.supervisor),
+            selectinload(Order.manager),
+            selectinload(Order.items).selectinload(OrderItem.product),
+        )
+        .offset(offset)
+        .limit(limit)
+    )
     return result.scalars().all()
 
 
