@@ -64,8 +64,11 @@ async def _get_or_create_stores(
     return mapping
 
 
-async def _get_or_create_products(codes: set[str]) -> dict[str, Product]:
-    codes = {c for c in codes if c}
+async def _get_or_create_products(
+    items: dict[str, tuple[str, float]],
+) -> dict[str, Product]:
+    """items: {product_code: (unit, weight)}"""
+    codes = {c for c in items if c}
     if not codes:
         return {}
     existing = (
@@ -79,7 +82,8 @@ async def _get_or_create_products(codes: set[str]) -> dict[str, Product]:
         Product(
             name_code=code,
             name=code.replace("_", " ").strip().title(),
-            unit="UN",
+            unit=items[code][0] or "UN",
+            unit_weight=items[code][1],
         )
         for code in missing
     ]
@@ -178,8 +182,12 @@ async def create_orders_batch(
     person_map = await _get_supervisors_and_managers(supervisor_manager_codes)
 
     # 4) resolve/cria produtos
-    product_codes = {item.product_id for p in payloads for item in p.items}
-    product_map = await _get_or_create_products(product_codes)
+    product_info: dict[str, tuple[str, float]] = {}
+    for p in payloads:
+        for item in p.items:
+            if item.product_id:
+                product_info[item.product_id] = (item.unit, item.weight)
+    product_map = await _get_or_create_products(product_info)
 
     orders_to_create: list[Order] = []
 
