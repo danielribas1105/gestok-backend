@@ -44,6 +44,7 @@ class OrderItemReadNested(OrderItemBase):
     product_name_code: Optional[str] = None
     product_name: Optional[str] = None
     product_code: Optional[str] = None
+    product_unit: Optional[str] = None
     product_weight: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -147,6 +148,9 @@ class OrderResponseSummary(BaseModel):
 class OrderItemCreatePayload(OrderItemBase):
     code: str
     product_id: str
+    quantity: int
+    unit: str
+    weight: float
 
 
 class OrderCreatePayload(OrderBase):

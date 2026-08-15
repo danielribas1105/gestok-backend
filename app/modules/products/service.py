@@ -12,9 +12,7 @@ from app.utils.functions import generate_name_code
 
 
 async def list_products(offset: int = 0, limit: int = 20) -> list[Product]:
-    result = await db.session.execute(
-        select(Product).offset(offset).limit(limit).order_by(Product.name)
-    )
+    result = await db.session.execute(select(Product).order_by(Product.name))
     return result.scalars().all()
 
 
