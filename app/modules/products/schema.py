@@ -8,7 +8,7 @@ class ProductCreate(BaseModel):
     code: Optional[str] = None
     name: str
     unit: str
-    unit_weight: Optional[float] = None
+    weight_kg_per_unit: Optional[float] = None
     active: bool = True
     image: Optional[str] = None
     updated_at: Optional[datetime] = None
@@ -18,7 +18,7 @@ class ProductUpdate(BaseModel):
     code: Optional[str] = None
     name: Optional[str] = None
     unit: Optional[str] = None
-    unit_weight: Optional[float] = None
+    weight_kg_per_unit: Optional[float] = None
     active: Optional[bool] = None
     image: Optional[str] = None
     updated_at: Optional[datetime] | None = None
@@ -30,7 +30,7 @@ class ProductRead(BaseModel):
     code: Optional[str] = None
     name: Optional[str] = None
     unit: Optional[str] = None
-    unit_weight: Optional[float] = None
+    weight_kg_per_unit: Optional[float] = None
     active: Optional[bool] = None
     image: Optional[str] = None
     created_at: datetime | None = None

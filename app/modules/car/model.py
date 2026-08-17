@@ -3,7 +3,7 @@ import enum
 from typing import TYPE_CHECKING, List, Optional
 import uuid
 from sqlmodel import Relationship, SQLModel, Field
-from sqlalchemy import Column, DateTime, String, func, text
+from sqlalchemy import Column, DateTime, String, UniqueConstraint, func, text
 
 if TYPE_CHECKING:
     from app.modules.drivers.model import Driver
@@ -19,6 +19,35 @@ class CarFuel(str, enum.Enum):
     HYBRID = "hybrid"
 
 
+class CapacityUnit(str, enum.Enum):
+    M3 = "m3"  # volume — vans/baús maiores, carga paletizada
+    BOXES = "boxes"  # quantidade de caixas — veículos menores, não paletizados
+    WEIGHT_KG = "weight_kg"  # peso — quando o limitante é peso, não espaço
+    PALLETS = "pallets"  # quantidade de pallets
+
+
+class CarCapacity(SQLModel, table=True):
+    __tablename__ = "car_capacities"
+    __table_args__ = (UniqueConstraint("car_id", "unit", name="uq_car_capacity_unit"),)
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        sa_column_kwargs={"server_default": text("gen_random_uuid()")},
+    )
+    car_id: uuid.UUID = Field(foreign_key="cars.id", nullable=False, index=True)
+    unit: CapacityUnit = Field(
+        default=CapacityUnit.M3,
+        sa_column=Column(
+            String(20), nullable=False, server_default=CapacityUnit.M3.value
+        ),
+    )
+    value: float = Field(default=None, nullable=True)
+
+    # Relationship
+    car: "Car" = Relationship(back_populates="capacities")
+
+
 class Car(SQLModel, table=True):
     __tablename__ = "cars"
 
@@ -29,7 +58,6 @@ class Car(SQLModel, table=True):
     )
     plate: str = Field(sa_column_kwargs={"unique": True, "index": True})
     model: str = Field()
-    capacity: float = Field()
     driver_id: uuid.UUID = Field(
         foreign_key="drivers.id",
         nullable=False,
@@ -46,8 +74,6 @@ class Car(SQLModel, table=True):
             server_default=CarFuel.DIESEL.value,
         ),
     )
-    strength: Optional[str] = Field(default=None, nullable=True)
-    versatility: Optional[str] = Field(default=None, nullable=True)
     active: bool = Field(default=True, sa_column_kwargs={"server_default": "true"})
     created_at: Optional[datetime] = Field(
         default=None,
@@ -58,3 +84,7 @@ class Car(SQLModel, table=True):
     # Relationship
     driver: Optional["Driver"] = Relationship(back_populates="car")
     deliveries: List["Delivery"] = Relationship(back_populates="car")
+    capacities: List["CarCapacity"] = Relationship(
+        back_populates="car",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
