@@ -22,8 +22,12 @@ class Product(SQLModel, table=True):
     )  # gerado via generate_name_code() na ingestão
     name: str = Field(nullable=False)
     code: Optional[str] = Field(default=None, nullable=True)
+
     unit: str = Field(nullable=False)
-    unit_weight: float = Field(nullable=True)
+    volume_m3_per_unit: float = Field(nullable=True)  # m³ por caixa/unidade
+    weight_kg_per_unit: float = Field(nullable=True)  # peso por caixa/unidade
+    boxes_per_pallet: int = Field(nullable=True)
+
     active: bool = Field(default=True)
     created_at: Optional[datetime] = Field(
         default=None,

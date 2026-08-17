@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from app.modules.clients.model import Client, Store
 from app.modules.orders.model import Order, OrderItem
-from app.modules.orders.schema import OrderCreatePayload, OrderResponse, OrderUpdate
+from app.modules.orders.schema import OrderCreatePayload, OrderUpdate
 from app.modules.products.model import Product
 from app.modules.salesperson.model import Salesperson, SalespersonProfile
 
@@ -83,7 +83,7 @@ async def _get_or_create_products(
             name_code=code,
             name=code.replace("_", " ").strip().title(),
             unit=items[code][0] or "UN",
-            unit_weight=items[code][1],
+            weight_kg_per_unit=items[code][1],
         )
         for code in missing
     ]
