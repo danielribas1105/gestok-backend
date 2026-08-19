@@ -31,6 +31,10 @@ def _to_response_orders(order) -> OrderResponse:
             product_code=item.product.code if item.product else None,
             product_unit=item.product.unit if item.product else None,
             product_weight=item.product.weight_kg_per_unit if item.product else None,
+            product_volume=item.product.volume_m3_per_unit if item.product else None,
+            product_boxes_pallet=(
+                item.product.boxes_per_pallet if item.product else None
+            ),
             quantity=item.quantity,
             total_price=item.total_price,
             name=item.product.name if item.product else None,

@@ -22,7 +22,7 @@ class CarFuel(str, enum.Enum):
 class CapacityUnit(str, enum.Enum):
     M3 = "m3"  # volume — vans/baús maiores, carga paletizada
     BOXES = "boxes"  # quantidade de caixas — veículos menores, não paletizados
-    WEIGHT_KG = "weight_kg"  # peso — quando o limitante é peso, não espaço
+    KG = "kg"  # peso — quando o limitante é peso, não espaço
     PALLETS = "pallets"  # quantidade de pallets
 
 

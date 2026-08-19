@@ -9,9 +9,10 @@ class ProductCreate(BaseModel):
     name: str
     unit: str
     weight_kg_per_unit: Optional[float] = None
+    volume_m3_per_unit: Optional[float] = None
+    boxes_per_pallet: Optional[int] = None
     active: bool = True
     image: Optional[str] = None
-    updated_at: Optional[datetime] = None
 
 
 class ProductUpdate(BaseModel):
@@ -19,9 +20,10 @@ class ProductUpdate(BaseModel):
     name: Optional[str] = None
     unit: Optional[str] = None
     weight_kg_per_unit: Optional[float] = None
+    volume_m3_per_unit: Optional[float] = None
+    boxes_per_pallet: Optional[int] = None
     active: Optional[bool] = None
     image: Optional[str] = None
-    updated_at: Optional[datetime] | None = None
 
 
 class ProductRead(BaseModel):
@@ -31,10 +33,11 @@ class ProductRead(BaseModel):
     name: Optional[str] = None
     unit: Optional[str] = None
     weight_kg_per_unit: Optional[float] = None
+    volume_m3_per_unit: Optional[float] = None
+    boxes_per_pallet: Optional[int] = None
     active: Optional[bool] = None
     image: Optional[str] = None
     created_at: datetime | None = None
-    updated_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
