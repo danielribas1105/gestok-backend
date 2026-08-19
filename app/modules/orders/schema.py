@@ -46,6 +46,8 @@ class OrderItemReadNested(OrderItemBase):
     product_code: Optional[str] = None
     product_unit: Optional[str] = None
     product_weight: Optional[float] = None
+    product_volume: Optional[float] = None
+    product_boxes_pallet: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
