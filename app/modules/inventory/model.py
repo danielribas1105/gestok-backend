@@ -40,9 +40,14 @@ class StockMovement(SQLModel, table=True):
         sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
     product_id: uuid.UUID = Field(foreign_key="products.id")
+
+    # referência real, só usada em saídas (OUT)
     order_id: Optional[uuid.UUID] = Field(
-        default=None, foreign_key="orders.id", nullable=True
+        default=None, foreign_key="orders.id", nullable=True, index=True
     )
+    # código de exibição/auditoria: romaneio (IN) ou cópia do PEDIDO (OUT)
+    code: str = Field(index=True)
+
     movement_type: MovementType = Field(
         default=MovementType.OUT,
         sa_column=Column(
