@@ -130,7 +130,10 @@ class Order(SQLModel, table=True):
         back_populates="order",
         sa_relationship_kwargs={"lazy": "selectin"},
     )
-    stock_movements: List["StockMovement"] = Relationship(back_populates="order")
+    stock_movements: List["StockMovement"] = Relationship(
+        back_populates="order",
+        sa_relationship_kwargs={"foreign_keys": "[StockMovement.order_id]"},
+    )
     client: Optional["Client"] = Relationship(
         back_populates="client_orders",
         sa_relationship_kwargs={"foreign_keys": "[Order.client_id]"},
