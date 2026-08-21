@@ -111,6 +111,11 @@ class Order(SQLModel, table=True):
         default=None,
         sa_column=Column(DateTime(timezone=True)),
     )
+    stock_hold: bool = Field(default=False, index=True)
+    stock_hold_reason: Optional[str] = Field(default=None)
+    stock_hold_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
 
     # Relationship
     saller: Optional["Salesperson"] = Relationship(

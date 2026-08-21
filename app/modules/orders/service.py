@@ -1,13 +1,23 @@
 from datetime import datetime, timezone
 import hashlib
+from typing import Optional
 import uuid
+from fastapi import HTTPException
 from fastapi_async_sqlalchemy import db
-from sqlalchemy import tuple_
+from sqlalchemy import func, tuple_
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from app.modules.clients.model import Client, Store
-from app.modules.orders.model import Order, OrderItem
-from app.modules.orders.schema import OrderCreatePayload, OrderUpdate
+from app.modules.inventory.model import Inventory
+from app.modules.orders.model import Order, OrderItem, OrderStatus
+from app.modules.orders.schema import (
+    OrderCreatePayload,
+    OrderItemStockStatus,
+    OrderStockStatus,
+    OrderUpdate,
+    ProductQuantityCheck,
+    ProductQuantitySummary,
+)
 from app.modules.products.model import Product
 from app.modules.salesperson.model import Salesperson, SalespersonProfile
 
@@ -150,6 +160,109 @@ async def _get_existing_orders(pairs: set[tuple[str, str]]) -> set[tuple[str, st
     return {(row[0], row[1]) for row in existing}
 
 
+async def _compute_item_stock_status_map(
+    orders: list[Order],
+) -> dict[uuid.UUID, OrderItemStockStatus]:
+    """
+    Retorna o status por ITEM (product_id dentro de cada pedido), pois a
+    disponibilidade é calculada por produto — o pedido como um todo não é
+    a unidade certa, já que dois itens do mesmo pedido podem ter produtos
+    diferentes com saldos diferentes.
+
+    Processa os pedidos em ordem cronológica (issued_at, fallback pra
+    created_at) e, dentro de cada pedido, os itens na ordem em que
+    aparecem. Item que cabe no saldo restante do produto desconta do
+    saldo; item que não cabe fica 'insufficient' e NÃO desconta — o
+    saldo continua disponível pros próximos pedidos da fila.
+    """
+    if not orders:
+        return {}
+
+    # pedidos em hold ficam de fora da fila de consumo — não disputam
+    # saldo, mas seus itens ainda precisam de uma entrada no mapa
+    active_orders = [o for o in orders if not o.stock_hold]
+    held_orders = [o for o in orders if o.stock_hold]
+
+    """ or o.created_at or datetime.min """
+    ordered = sorted(active_orders, key=lambda o: o.code)
+    product_ids = {item.product_id for o in ordered for item in o.items}
+    item_status: dict[uuid.UUID, OrderItemStockStatus] = {}
+
+    # itens de pedidos em hold: status fixo ON_HOLD, sem consumir saldo
+    for order in held_orders:
+        for item in order.items:
+            item_status[item.id] = OrderItemStockStatus.ON_HOLD
+
+    if not product_ids:
+        return item_status
+
+    result = await db.session.execute(
+        select(Inventory.product_id, Inventory.available_quantity).where(
+            Inventory.product_id.in_(product_ids)
+        )
+    )
+    remaining = {row.product_id: float(row.available_quantity) for row in result.all()}
+
+    for order in ordered:
+        for item in order.items:
+            available = remaining.get(item.product_id, 0.0)
+            if available >= item.quantity:
+                item_status[item.id] = OrderItemStockStatus.IN_STOCK
+                remaining[item.product_id] = available - item.quantity
+            else:
+                item_status[item.id] = OrderItemStockStatus.NO_STOCK
+
+    return item_status
+
+
+def aggregate_order_stock_status(
+    order: Order,
+    item_statuses: list[OrderItemStockStatus],
+) -> Optional[OrderStockStatus]:
+    """Resume os status dos itens de um pedido em um único status pro pedido."""
+    if order.stock_hold:
+        return OrderStockStatus.ON_HOLD
+    if not item_statuses:
+        return None
+    if all(s == OrderItemStockStatus.IN_STOCK for s in item_statuses):
+        return OrderStockStatus.SUFFICIENT
+    if all(s == OrderItemStockStatus.NO_STOCK for s in item_statuses):
+        return OrderStockStatus.INSUFFICIENT
+    return OrderStockStatus.PARTIAL
+
+
+async def set_order_stock_hold(
+    order_id: uuid.UUID, stock_hold: bool, reason: Optional[str]
+) -> Order:
+    order = await get_order_by_id(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+
+    order.stock_hold = stock_hold
+    order.stock_hold_reason = reason if stock_hold else None
+    order.stock_hold_at = datetime.utcnow() if stock_hold else None
+
+    db.session.add(order)
+    await db.session.commit()
+    await db.session.refresh(order)
+    return order
+
+
+async def get_pending_orders_item_stock_status() -> dict[uuid.UUID, OrderStockStatus]:
+    """
+    Status de estoque por item para TODOS os pedidos pendentes — precisa
+    rodar sobre o conjunto completo, não só a página exibida, senão a fila
+    de consumo fica incorreta.
+    """
+    result = await db.session.execute(
+        select(Order)
+        .where(Order.status == OrderStatus.PENDING)
+        .options(selectinload(Order.items))
+    )
+    orders = result.scalars().all()
+    return await _compute_item_stock_status_map(orders)
+
+
 async def create_orders_batch(
     payloads: list[OrderCreatePayload],
 ) -> tuple[list[Order], list[dict]]:
@@ -290,6 +403,82 @@ async def create_orders_batch(
             await db.session.refresh(order)
 
     return orders_to_create, errors
+
+
+async def get_pending_orders_stock_status() -> dict[uuid.UUID, OrderItemStockStatus]:
+    """
+    Status de estoque para TODOS os pedidos pendentes — precisa rodar sobre
+    o conjunto completo, não só a página exibida, senão a fila de consumo
+    fica incorreta (um pedido fora da página pode já ter consumido o saldo).
+    """
+    result = await db.session.execute(
+        select(Order)
+        .where(Order.status == OrderStatus.PENDING)
+        .options(selectinload(Order.items))
+    )
+    orders = result.scalars().all()
+    return await _compute_stock_status_map(orders)
+
+
+async def get_products_quantity_check(
+    item_ids: list[uuid.UUID],
+) -> list[ProductQuantityCheck]:
+    if not item_ids:
+        return []
+
+    # soma pedido por produto, restrita aos ITENS selecionados
+    # (não mais aos pedidos inteiros — permite desmarcar 1 item sem
+    # afetar os demais itens do mesmo pedido)
+    ordered_qty = (
+        select(
+            OrderItem.product_id.label("product_id"),
+            func.sum(OrderItem.quantity).label("total_quantity"),
+        )
+        .where(OrderItem.id.in_(item_ids))
+        .group_by(OrderItem.product_id)
+        .subquery()
+    )
+
+    # 2) junta produto + estoque disponível — única execução real
+    stmt = (
+        select(
+            ordered_qty.c.product_id,
+            Product.name,
+            Product.name_code,
+            ordered_qty.c.total_quantity,
+            Inventory.available_quantity,
+            Inventory.current_quantity,
+            Inventory.reserved_quantity,
+        )
+        .join(Product, Product.id == ordered_qty.c.product_id)
+        .outerjoin(Inventory, Inventory.product_id == ordered_qty.c.product_id)
+    )
+
+    result = await db.session.execute(stmt)
+    rows = result.all()
+
+    checks: list[ProductQuantityCheck] = []
+    for row in rows:
+        total = int(row.total_quantity)
+        available = float(row.available_quantity or 0.0)
+        current = float(row.current_quantity or 0.0)
+        reserved = float(row.reserved_quantity or 0.0)
+
+        checks.append(
+            ProductQuantityCheck(
+                product_id=row.product_id,
+                name=row.name,
+                name_code=row.name_code,
+                total_quantity=total,
+                available_quantity=available,
+                current_quantity=float(row.current_quantity or 0.0),
+                reserved_quantity=float(row.reserved_quantity or 0.0),
+                is_sufficient=available >= total,
+                shortage=max(0.0, total - available),
+            )
+        )
+
+    return checks
 
 
 async def list_orders(offset: int = 0, limit: int = 20) -> list[Order]:
