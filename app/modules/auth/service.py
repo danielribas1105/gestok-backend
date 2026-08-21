@@ -3,12 +3,13 @@ from math import floor
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from fastapi_async_sqlalchemy import db
 from jose import jwt, JWTError
 
 from app.config import settings
+from app.modules.user.model import User
 from app.modules.user.service import get_user_by_email, get_user_by_id
 from app.modules.auth.model import UserSession
 from app.utils.security import verify_password
@@ -88,6 +89,20 @@ async def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="User not found")
 
     return user
+
+
+def require_roles(*allowed_roles: str):
+    """Dependency factory: bloqueia o endpoint pra roles fora da lista."""
+
+    async def _check(user: User = Depends(get_current_user)) -> User:
+        if user.profile not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você não tem permissão para executar esta ação",
+            )
+        return user
+
+    return _check
 
 
 async def create_refresh_token(user_id: str):

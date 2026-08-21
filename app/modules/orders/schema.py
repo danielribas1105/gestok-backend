@@ -1,4 +1,5 @@
 from datetime import datetime
+import enum
 from typing import List, Optional
 import uuid
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -8,6 +9,12 @@ from app.modules.orders.model import OrderStatus, OrderOperationType
 # ─────────────────────────────────────────────
 # ORDER ITEM
 # ─────────────────────────────────────────────
+
+
+class OrderItemStockStatus(str, enum.Enum):
+    IN_STOCK = "in_stock"
+    NO_STOCK = "no_stock"
+    ON_HOLD = "on_hold"
 
 
 class OrderItemBase(BaseModel):
@@ -48,6 +55,7 @@ class OrderItemReadNested(OrderItemBase):
     product_weight: Optional[float] = None
     product_volume: Optional[float] = None
     product_boxes_pallet: Optional[int] = None
+    stock_item_status: Optional[OrderItemStockStatus] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -55,6 +63,18 @@ class OrderItemReadNested(OrderItemBase):
 # ─────────────────────────────────────────────
 # ORDER
 # ─────────────────────────────────────────────
+
+
+class OrderStockStatus(str, enum.Enum):
+    SUFFICIENT = "sufficient"  # todo o pedido cabe no saldo
+    PARTIAL = "partial"  # alguns itens cabem, outros não
+    INSUFFICIENT = "insufficient"  # nenhum item coube
+    ON_HOLD = "on_hold"  # aguardando
+
+
+class OrderStockHoldUpdate(BaseModel):
+    stock_hold: bool
+    reason: Optional[str] = None
 
 
 class OrderBase(BaseModel):
@@ -116,6 +136,9 @@ class OrderResponse(OrderBase):
     updated_at: Optional[datetime] = None
     processed_at: Optional[datetime] = None
     items: List[OrderItemReadNested] = []
+    stock_status: Optional[OrderStockStatus] = None
+    stock_hold: bool = False
+    stock_hold_reason: Optional[str] = None
 
     # Campos resolvidos
     client_name: Optional[str] = None
@@ -182,3 +205,52 @@ class BatchOrderError(BaseModel):
 class OrderBatchResponse(BaseModel):
     created: list[OrderResponse]
     failed: list[BatchOrderError]
+
+
+# ─────────────────────────────────────────────
+# PRODUCTS INFO
+# ─────────────────────────────────────────────
+
+
+class ProductQuantitySummary(BaseModel):
+    """Soma de quantidade de um produto entre os pedidos consultados.
+    Usado pelo front pra checar se o estoque cobre a entrega de vários
+    pedidos selecionados de uma vez.
+    """
+
+    product_id: uuid.UUID
+    name: str
+    name_code: str
+    total_quantity: int
+
+
+class ProductsQuantitySummaryRequest(BaseModel):
+    order_ids: list[uuid.UUID]
+
+
+class ProductQuantityCheck(BaseModel):
+    """Compara quanto foi pedido (soma dos order_ids informados) com o
+    estoque disponível do produto. Usado pra validar se dá pra atender
+    a entrega de vários pedidos selecionados de uma vez.
+    """
+
+    product_id: uuid.UUID
+    name: str
+    name_code: str
+    total_quantity: int  # soma pedida (SUM(order_items.quantity))
+    available_quantity: (
+        float  # inventory.available_quantity (0 se produto sem registro de estoque)
+    )
+    current_quantity: float
+    reserved_quantity: float
+    is_sufficient: bool
+    shortage: float  # max(0, total_quantity - available_quantity)
+
+
+class ProductsQuantityCheckRequest(BaseModel):
+    item_ids: list[uuid.UUID]
+
+
+class ProductsQuantityCheckResponse(BaseModel):
+    items: list[ProductQuantityCheck]
+    all_sufficient: bool
