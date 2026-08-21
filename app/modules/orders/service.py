@@ -129,21 +129,55 @@ async def _get_or_create_sallers(codes: set[str]) -> dict[str, Salesperson]:
     return mapping
 
 
-async def _get_supervisors_and_managers(codes: set[str]) -> dict[str, Salesperson]:
-    """Apenas busca — supervisor/gerente já devem existir no cadastro."""
-    codes = {c for c in codes if c}
-    if not codes:
+async def _get_or_create_supervisors_and_managers(
+    supervisor_codes: set[str], manager_codes: set[str]
+) -> dict[str, Salesperson]:
+    """
+    Busca supervisores/gerentes existentes e cria os que não estiverem
+    cadastrados — mesmo comportamento já aplicado a vendedores. Nome
+    provisório baseado no código; cadastro completo deve ser ajustado
+    depois via tela de gestão de pessoas.
+    """
+    supervisor_codes = {c for c in supervisor_codes if c}
+    manager_codes = {c for c in manager_codes if c}
+    all_codes = supervisor_codes | manager_codes
+    if not all_codes:
         return {}
+
     existing = (
         (
             await db.session.execute(
-                select(Salesperson).where(Salesperson.code.in_(codes))
+                select(Salesperson).where(Salesperson.code.in_(all_codes))
             )
         )
         .scalars()
         .all()
     )
-    return {p.code: p for p in existing}
+    mapping = {p.code: p for p in existing}
+
+    missing_supervisors = supervisor_codes - mapping.keys()
+    missing_managers = manager_codes - mapping.keys()
+    # código que aparece como supervisor E gerente ao mesmo tempo, sem cadastro
+    # prévio: registra como supervisor por padrão (ajuste manual depois, se for
+    # o caso — não dá pra saber o papel "correto" só pelo código)
+    missing_managers -= missing_supervisors
+
+    new_people = [
+        Salesperson(
+            code=code, name=f"Supervisor {code}", profile=SalespersonProfile.SUPERVISOR
+        )
+        for code in missing_supervisors
+    ] + [
+        Salesperson(
+            code=code, name=f"Gerente {code}", profile=SalespersonProfile.MANAGER
+        )
+        for code in missing_managers
+    ]
+    if new_people:
+        db.session.add_all(new_people)
+        for p in new_people:
+            mapping[p.code] = p
+    return mapping
 
 
 async def _get_existing_orders(pairs: set[tuple[str, str]]) -> set[tuple[str, str]]:
@@ -289,10 +323,11 @@ async def create_orders_batch(
     saller_map = await _get_or_create_sallers(saller_codes)
 
     # 3b) supervisor e gerente: só busca, não cria — devem já existir
-    supervisor_manager_codes = {p.supervisor_id for p in payloads} | {
-        p.manager_id for p in payloads
-    }
-    person_map = await _get_supervisors_and_managers(supervisor_manager_codes)
+    supervisor_codes = {p.supervisor_id for p in payloads}
+    manager_codes = {p.manager_id for p in payloads}
+    person_map = await _get_or_create_supervisors_and_managers(
+        supervisor_codes, manager_codes
+    )
 
     # 4) resolve/cria produtos
     product_info: dict[str, tuple[str, float]] = {}
@@ -403,21 +438,6 @@ async def create_orders_batch(
             await db.session.refresh(order)
 
     return orders_to_create, errors
-
-
-async def get_pending_orders_stock_status() -> dict[uuid.UUID, OrderItemStockStatus]:
-    """
-    Status de estoque para TODOS os pedidos pendentes — precisa rodar sobre
-    o conjunto completo, não só a página exibida, senão a fila de consumo
-    fica incorreta (um pedido fora da página pode já ter consumido o saldo).
-    """
-    result = await db.session.execute(
-        select(Order)
-        .where(Order.status == OrderStatus.PENDING)
-        .options(selectinload(Order.items))
-    )
-    orders = result.scalars().all()
-    return await _compute_stock_status_map(orders)
 
 
 async def get_products_quantity_check(
