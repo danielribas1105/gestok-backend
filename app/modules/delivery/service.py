@@ -1,57 +1,73 @@
 import uuid
 from datetime import datetime, timezone
+from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 from fastapi_async_sqlalchemy import db
 from sqlmodel import Session, select
 
 from app.modules.delivery.model import Delivery, DeliveryStatus
-from app.modules.delivery.schema import DeliveryCreate, DeliveryUpdate
+from app.modules.delivery.schema import DeliveryCreate, DeliveryRead, DeliveryUpdate
 from app.modules.orders.model import Order, OrderStatus
 from app.modules.car.model import Car
 
 
-async def list_deliveries(offset: int = 0, limit: int = 20) -> list[Delivery]:
-    result = await db.session.execute(select(Delivery).offset(offset).limit(limit))
-    return result.scalars().all()
-
-
-def create_delivery(session: Session, data: DeliveryCreate) -> Delivery:
-    order = session.get(Order, data.order_id)
-    if not order:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido não encontrado")
-
-    car = session.get(Car, data.car_id)
-    if not car:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Carro não encontrado")
-
-    if not car.driver_id:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            "Este carro não possui motorista vinculado",
-        )
-
-    existing = session.exec(
-        select(Delivery).where(Delivery.order_id == data.order_id)
-    ).first()
-    if existing:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "Este pedido já possui uma entrega atribuída"
-        )
-
-    delivery = Delivery(
-        order_id=data.order_id,
-        car_id=data.car_id,
-        driver_id=car.driver_id,  # derivado do carro
-        status=DeliveryStatus.PENDING,
+def _to_delivery_read(delivery: Delivery) -> DeliveryRead:
+    return DeliveryRead(
+        id=delivery.id,
+        order_id=delivery.order_id,
+        car_id=delivery.car_id,
+        user_id=delivery.user_id,
+        weight=delivery.weight,
+        invoice=delivery.invoice,
+        status=delivery.status,
+        observations=delivery.observations,
+        created_at=delivery.created_at,
+        departed_at=delivery.departed_at,
+        delivery_at=delivery.delivery_at,
+        delivery_confirmed=delivery.delivery_confirmed,
+        car=f"{delivery.car.plate} - {delivery.car.model}" if delivery.car else None,
+        driver=(
+            delivery.car.driver.name if delivery.car and delivery.car.driver else None
+        ),
+        user=delivery.user.name if delivery.user else None,
+        order_code=delivery.order.code if delivery.order else None,
     )
-    session.add(delivery)
 
-    order.status = OrderStatus.INTRANSIT
-    session.add(order)
 
-    session.commit()
-    session.refresh(delivery)
-    return delivery
+async def list_delivery(offset: int = 0, limit: int = 20) -> list[DeliveryRead]:
+    result = await db.session.execute(
+        select(Delivery)
+        .options(
+            selectinload(Delivery.car).selectinload(Car.driver),
+            selectinload(Delivery.user),
+            selectinload(Delivery.order),
+        )
+        .offset(offset)
+        .limit(limit)
+    )
+    deliveries = result.scalars().all()
+    return [_to_delivery_read(d) for d in deliveries]
+
+
+async def create_delivery(data: list[DeliveryCreate]) -> list[DeliveryRead]:
+    deliveries = [Delivery(**item.model_dump()) for item in data]
+    db.session.add_all(deliveries)
+    await db.session.commit()
+
+    ids = [d.id for d in deliveries]
+
+    result = await db.session.execute(
+        select(Delivery)
+        .options(
+            selectinload(Delivery.car).selectinload(Car.driver),
+            selectinload(Delivery.user),
+            selectinload(Delivery.order),
+        )
+        .where(Delivery.id.in_(ids))
+    )
+    created = result.scalars().all()
+
+    return [_to_delivery_read(d) for d in created]
 
 
 def get_delivery(session: Session, delivery_id: uuid.UUID) -> Delivery:
