@@ -1,13 +1,16 @@
 from datetime import datetime
 
+from fastapi import Depends
 from fastapi_async_sqlalchemy import db
 from sqlalchemy import select
 from sqlalchemy.orm import contains_eager, selectinload
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.modules.auth.service import get_current_user
 from app.modules.inventory.model import Inventory, MovementType, StockMovement
 from app.modules.inventory.schema import InventoryUpdateBatch
 from app.modules.products.model import Product
+from app.modules.user.model import User
 
 
 async def list_inventory(offset: int = 0, limit: int = 20) -> list[Inventory]:
@@ -22,7 +25,7 @@ async def list_inventory(offset: int = 0, limit: int = 20) -> list[Inventory]:
     return result.scalars().all()
 
 
-async def _apply_stock_movement(item: InventoryUpdateBatch) -> Inventory:
+async def _apply_stock_movement(item: InventoryUpdateBatch, user: User) -> Inventory:
     """Cria o StockMovement e ajusta o saldo de Inventory para um item do lote.
     Não faz commit — a transação é controlada por quem chama."""
 
@@ -53,6 +56,7 @@ async def _apply_stock_movement(item: InventoryUpdateBatch) -> Inventory:
         product_id=item.product_id,
         order_id=item.order_id,
         code=item.code,
+        user_id=user.id,
         movement_type=item.movement_type,
         quantity=item.quantity,
         observations=item.observations,
@@ -70,6 +74,7 @@ async def _apply_stock_movement(item: InventoryUpdateBatch) -> Inventory:
 
 async def update_inventory_batch(
     items: list[InventoryUpdateBatch],
+    user: User,
 ) -> tuple[list[Inventory], list[dict]]:
     created: list[Inventory] = []
     failed: list[dict] = []
@@ -77,7 +82,7 @@ async def update_inventory_batch(
     for item in items:
         try:
             async with db.session.begin_nested():  # savepoint isolado por item
-                inventory = await _apply_stock_movement(item)
+                inventory = await _apply_stock_movement(item, user)
             created.append(inventory)
         except (SQLAlchemyError, ValueError) as exc:
             # begin_nested já reverteu o savepoint deste item ao sair por exceção
