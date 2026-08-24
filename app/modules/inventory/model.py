@@ -8,6 +8,7 @@ from sqlmodel import Field, Relationship, SQLModel
 if TYPE_CHECKING:
     from app.modules.orders.model import Order
     from app.modules.products.model import Product
+    from app.modules.user.model import User
 
 
 class MovementType(str, enum.Enum):
@@ -47,6 +48,7 @@ class StockMovement(SQLModel, table=True):
     )
     # código de exibição/auditoria: romaneio (IN) ou cópia do PEDIDO (OUT)
     code: str = Field(index=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", nullable=True, index=True)
 
     movement_type: MovementType = Field(
         default=MovementType.OUT,
@@ -63,3 +65,4 @@ class StockMovement(SQLModel, table=True):
     # Relationship
     product: Optional["Product"] = Relationship(back_populates="stock_movements")
     order: Optional["Order"] = Relationship(back_populates="stock_movements")
+    user: Optional["User"] = Relationship(back_populates="stock_movements")

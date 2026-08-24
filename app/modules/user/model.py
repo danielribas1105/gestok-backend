@@ -7,6 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from app.modules.delivery.model import Delivery
+    from app.modules.inventory.model import StockMovement
 
 
 class UserProfile(str, enum.Enum):
@@ -50,3 +51,4 @@ class User(SQLModel, table=True):
 
     # Relationship
     deliveries: List["Delivery"] = Relationship(back_populates="user")
+    stock_movements: List["StockMovement"] = Relationship(back_populates="user")

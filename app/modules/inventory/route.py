@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Body, Depends
-from app.modules.auth.service import get_current_user
+from app.modules.auth.service import get_current_user, require_roles
 from app.modules.inventory.schema import (
     InventoryBatchRead,
     InventoryRead,
@@ -33,7 +33,7 @@ async def list_inventory(
 @router.post("/batch", response_model=InventoryBatchRead, status_code=201)
 async def update_inventory_batch(
     inventory: list[InventoryUpdateBatch] = Body(..., embed=True),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles("admin", "operator")),
 ):
-    created, failed = await service.update_inventory_batch(inventory)
+    created, failed = await service.update_inventory_batch(inventory, user)
     return InventoryBatchRead(created=created, failed=failed)
