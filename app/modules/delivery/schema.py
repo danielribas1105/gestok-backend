@@ -9,30 +9,39 @@ from app.modules.delivery.model import DeliveryStatus
 class DeliveryCreate(SQLModel):
     order_id: uuid.UUID
     car_id: uuid.UUID
-    # driver_id removido: agora é derivado do carro no service
+    user_id: uuid.UUID
+    weight: float
+    invoice: Optional[str] = None
+    status: DeliveryStatus = DeliveryStatus.PENDING
+    observations: Optional[str] = None
+    departed_at: Optional[datetime] = None
+    delivery_at: Optional[datetime] = None
+    delivery_confirmed: Optional[bool] = False
 
 
 class DeliveryUpdate(SQLModel):
     car_id: Optional[uuid.UUID] = None
     status: Optional[DeliveryStatus] = None
-    # driver_id não é mais editável diretamente aqui;
-    # troca de motorista acontece trocando o car_id
-
-
-class DeliveryConfirm(SQLModel):
-    # Preenchido pelo usuário logístico, em nome do motorista
-    observations: Optional[str] = None
 
 
 class DeliveryRead(SQLModel):
     id: uuid.UUID
     order_id: uuid.UUID
-    driver_id: uuid.UUID
     car_id: uuid.UUID
+    user_id: uuid.UUID
+    weight: Optional[float] = None
+    invoice: Optional[str] = None
     status: DeliveryStatus
-    confirmed_by_driver: bool
-    confirmed_at: Optional[datetime]
+    observations: Optional[str] = None
     created_at: datetime
-    updated_at: Optional[datetime]
+    departed_at: Optional[datetime] = None
+    delivery_at: Optional[datetime] = None
+    delivery_confirmed: Optional[bool] = None
+
+    # Campos resolvidos
+    order_code: Optional[str] = None
+    car: Optional[str] = None
+    driver: Optional[str] = None
+    user: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

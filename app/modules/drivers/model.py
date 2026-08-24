@@ -7,7 +7,6 @@ from sqlalchemy import Column, DateTime, String, func, text
 
 if TYPE_CHECKING:
     from app.modules.car.model import Car
-    from app.modules.delivery.model import Delivery
 
 
 class TypeLicense(str, enum.Enum):
@@ -51,4 +50,3 @@ class Driver(SQLModel, table=True):
 
     # Relationship
     car: Optional["Car"] = Relationship(back_populates="driver")
-    deliveries: List["Delivery"] = Relationship(back_populates="driver")

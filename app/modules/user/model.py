@@ -1,9 +1,12 @@
 import enum
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import Column, DateTime, String, func, text
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
+
+if TYPE_CHECKING:
+    from app.modules.delivery.model import Delivery
 
 
 class UserProfile(str, enum.Enum):
@@ -44,3 +47,6 @@ class User(SQLModel, table=True):
         sa_column=Column(DateTime(timezone=True), onupdate=func.now()),
     )
     image: Optional[str] = Field(default=None, nullable=True)
+
+    # Relationship
+    deliveries: List["Delivery"] = Relationship(back_populates="user")
