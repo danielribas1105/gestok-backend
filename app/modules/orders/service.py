@@ -16,7 +16,6 @@ from app.modules.orders.schema import (
     OrderStockStatus,
     OrderUpdate,
     ProductQuantityCheck,
-    ProductQuantitySummary,
 )
 from app.modules.products.model import Product
 from app.modules.salesperson.model import Salesperson, SalespersonProfile
@@ -194,6 +193,84 @@ async def _get_existing_orders(pairs: set[tuple[str, str]]) -> set[tuple[str, st
     return {(row[0], row[1]) for row in existing}
 
 
+async def _reserve_inventory_for_items(items: list[OrderItem]) -> None:
+    """
+    Reserva o estoque dos itens de um pedido recém-criado (reserved_quantity += qty).
+    Não bloqueia a criação do pedido mesmo que isso deixe available_quantity
+    negativo — isso é justamente o sinal de estoque insuficiente, já usado
+    pelas telas de checagem (is_sufficient/shortage). O bloqueio de fato só
+    acontece na entrega, que converte a reserva em baixa real.
+    """
+    if not items:
+        return
+
+    qty_by_product: dict[uuid.UUID, float] = {}
+    for item in items:
+        qty_by_product[item.product_id] = (
+            qty_by_product.get(item.product_id, 0) + item.quantity
+        )
+
+    result = await db.session.execute(
+        select(Inventory)
+        .where(Inventory.product_id.in_(qty_by_product.keys()))
+        .with_for_update()
+    )
+    inventory_map = {inv.product_id: inv for inv in result.scalars().all()}
+
+    # produto sem registro de inventário ainda (nunca teve entrada de estoque)
+    missing_ids = qty_by_product.keys() - inventory_map.keys()
+    for product_id in missing_ids:
+        inv = Inventory(
+            product_id=product_id,
+            current_quantity=0.0,
+            reserved_quantity=0.0,
+            available_quantity=0.0,
+        )
+        db.session.add(inv)
+        inventory_map[product_id] = inv
+
+    if missing_ids:
+        await db.session.flush()  # garante que os novos registros existam antes de atualizar
+
+    for product_id, qty in qty_by_product.items():
+        inv = inventory_map[product_id]
+        inv.reserved_quantity += qty
+        inv.available_quantity = inv.current_quantity - inv.reserved_quantity
+        inv.last_updated = datetime.now(timezone.utc)
+        db.session.add(inv)
+
+
+async def _release_inventory_for_items(items: list[OrderItem]) -> None:
+    """
+    Libera a reserva de estoque dos itens de um pedido que foi cancelado
+    ou excluído antes de virar entrega (reserved_quantity -= qty).
+    """
+    if not items:
+        return
+
+    qty_by_product: dict[uuid.UUID, float] = {}
+    for item in items:
+        qty_by_product[item.product_id] = (
+            qty_by_product.get(item.product_id, 0) + item.quantity
+        )
+
+    result = await db.session.execute(
+        select(Inventory)
+        .where(Inventory.product_id.in_(qty_by_product.keys()))
+        .with_for_update()
+    )
+    inventory_map = {inv.product_id: inv for inv in result.scalars().all()}
+
+    for product_id, qty in qty_by_product.items():
+        inv = inventory_map.get(product_id)
+        if not inv:
+            continue
+        inv.reserved_quantity = max(0.0, inv.reserved_quantity - qty)
+        inv.available_quantity = inv.current_quantity - inv.reserved_quantity
+        inv.last_updated = datetime.now(timezone.utc)
+        db.session.add(inv)
+
+
 async def _compute_item_stock_status_map(
     orders: list[Order],
 ) -> dict[uuid.UUID, OrderItemStockStatus]:
@@ -272,9 +349,19 @@ async def set_order_stock_hold(
     if not order:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")
 
+    if order.status != OrderStatus.PENDING:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Pedido {order.code} está com status '{order.status}' e não "
+                "pode ter o hold alterado — só pedidos pendentes podem ser "
+                "colocados/retirados de hold"
+            ),
+        )
+
     order.stock_hold = stock_hold
     order.stock_hold_reason = reason if stock_hold else None
-    order.stock_hold_at = datetime.utcnow() if stock_hold else None
+    order.stock_hold_at = datetime.now(timezone.utc) if stock_hold else None
 
     db.session.add(order)
     await db.session.commit()
@@ -433,6 +520,12 @@ async def create_orders_batch(
 
     if orders_to_create:
         db.session.add_all(orders_to_create)
+        # await db.session.commit()
+        await db.session.flush()
+
+        all_items = [item for order in orders_to_create for item in order.items]
+        await _reserve_inventory_for_items(all_items)
+
         await db.session.commit()
         for order in orders_to_create:
             await db.session.refresh(order)
@@ -524,6 +617,10 @@ async def create_order(data: OrderCreatePayload) -> Order:
         created_at=datetime.now(timezone.utc),
     )
     db.session.add(order)
+    await db.session.flush()
+
+    await _reserve_inventory_for_items(order.items)
+
     await db.session.commit()
     await db.session.refresh(order)
     return order
@@ -538,6 +635,15 @@ async def get_order_by_id(order_id: uuid.UUID) -> Order:
 
 async def update(order_id: uuid.UUID, data: OrderUpdate) -> Order:
     order = await get_order_by_id(order_id)
+
+    update_data = data.model_dump(exclude_unset=True)
+
+    if (
+        update_data.get("status") == OrderStatus.CANCELED
+        and order.status == OrderStatus.PENDING
+    ):
+        await _release_inventory_for_items(order.items)
+
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(order, field, value)
     order.updated_at = datetime.now(timezone.utc)
@@ -548,5 +654,7 @@ async def update(order_id: uuid.UUID, data: OrderUpdate) -> Order:
 
 async def delete(order_id: uuid.UUID) -> None:
     order = await get_order_by_id(order_id)
+    if order.status == OrderStatus.PENDING:
+        await _release_inventory_for_items(order.items)
     await db.session.delete(order)
     await db.session.commit()

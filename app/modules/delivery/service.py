@@ -9,6 +9,7 @@ from app.modules.delivery.model import Delivery, DeliveryStatus
 from app.modules.delivery.schema import DeliveryCreate, DeliveryRead, DeliveryUpdate
 from app.modules.orders.model import Order, OrderStatus
 from app.modules.car.model import Car
+from app.modules.inventory.model import Inventory, StockMovement, MovementType
 
 
 def _to_delivery_read(delivery: Delivery) -> DeliveryRead:
@@ -34,6 +35,82 @@ def _to_delivery_read(delivery: Delivery) -> DeliveryRead:
     )
 
 
+async def _apply_stock_movements_for_delivery(delivery: Delivery, order: Order) -> None:
+    """
+    Registra as saídas (OUT) em stock_movements, atualiza o inventário
+    (estoque real e reservado) e trava o pedido como PROCESSED — a partir
+    daqui ele não pode mais ser colocado em hold nem selecionado numa
+    nova checagem/entrega.
+
+    IMPORTANTE: só deve ser chamada depois que a Delivery já foi criada/persistida.
+    """
+    if order.stock_hold:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Pedido {order.code} está em hold e não pode gerar saída de estoque",
+        )
+
+    if order.status != OrderStatus.PENDING:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Pedido {order.code} não está pendente (status atual: {order.status}) "
+            "e não pode gerar uma nova entrega",
+        )
+
+    if not order.items:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            f"Pedido {order.code} não possui itens para gerar saída de estoque",
+        )
+
+    for item in order.items:
+        result = await db.session.execute(
+            select(Inventory)
+            .where(Inventory.product_id == item.product_id)
+            .with_for_update()
+        )
+        inventory = result.scalar_one_or_none()
+
+        if not inventory:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                f"Inventário não encontrado para o produto {item.product_id}",
+            )
+
+        if inventory.available_quantity < item.quantity:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                f"Reserva insuficiente para o produto {item.product_id}: "
+                f"reservado={inventory.reserved_quantity}, solicitado={item.quantity}",
+            )
+
+        inventory.current_quantity -= item.quantity
+        inventory.reserved_quantity -= item.quantity
+        inventory.available_quantity = (
+            inventory.current_quantity - inventory.reserved_quantity
+        )
+        inventory.last_updated = datetime.now(timezone.utc)
+        db.session.add(inventory)
+
+        movement = StockMovement(
+            product_id=item.product_id,
+            order_id=order.id,
+            code=order.code,
+            user_id=delivery.user_id,
+            movement_type=MovementType.OUT,
+            quantity=item.quantity,
+            movement_date=datetime.now(timezone.utc),
+            observations=f"Saída de estoque referente à entrega {delivery.id}",
+        )
+        db.session.add(movement)
+
+    # Pedido processado: sai da fila de pendentes, não pode mais ser
+    # colocado em hold nem selecionado numa nova checagem de estoque/entrega
+    order.status = OrderStatus.PROCESSED
+    order.processed_at = datetime.now(timezone.utc)
+    db.session.add(order)
+
+
 async def list_delivery(offset: int = 0, limit: int = 20) -> list[DeliveryRead]:
     result = await db.session.execute(
         select(Delivery)
@@ -50,9 +127,11 @@ async def list_delivery(offset: int = 0, limit: int = 20) -> list[DeliveryRead]:
 
 
 async def create_delivery(data: list[DeliveryCreate]) -> list[DeliveryRead]:
+    # 1. Cria as deliveries primeiro — a baixa de estoque depende delas existirem
     deliveries = [Delivery(**item.model_dump()) for item in data]
     db.session.add_all(deliveries)
-    await db.session.commit()
+    # await db.session.commit()
+    await db.session.flush()  # ainda dentro da mesma transação, reversível
 
     ids = [d.id for d in deliveries]
 
@@ -61,11 +140,27 @@ async def create_delivery(data: list[DeliveryCreate]) -> list[DeliveryRead]:
         .options(
             selectinload(Delivery.car).selectinload(Car.driver),
             selectinload(Delivery.user),
-            selectinload(Delivery.order),
+            selectinload(Delivery.order).selectinload(Order.items),
         )
         .where(Delivery.id.in_(ids))
     )
     created = result.scalars().all()
+
+    # 2. Só agora, com as deliveries já persistidas, aplica a baixa de
+    # estoque e trava o(s) pedido(s) como PROCESSED
+    try:
+        for delivery in created:
+            if not delivery.order:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    f"Entrega {delivery.id} não possui pedido vinculado",
+                )
+            await _apply_stock_movements_for_delivery(delivery, delivery.order)
+
+        await db.session.commit()
+    except HTTPException:
+        await db.session.rollback()
+        raise
 
     return [_to_delivery_read(d) for d in created]
 

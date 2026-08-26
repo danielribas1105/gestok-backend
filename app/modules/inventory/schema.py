@@ -31,6 +31,8 @@ class InventoryUpdateBatch(InventoryBase):
     movement_type: MovementType
     quantity: int
     order_id: Optional[uuid.UUID] = None
+    movement_date: datetime
+    user_id: uuid.UUID
     observations: Optional[str] = None
 
     @model_validator(mode="after")

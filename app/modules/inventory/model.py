@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
-from sqlalchemy import Column, String, text
+from sqlalchemy import Column, DateTime, String, text
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ class Inventory(SQLModel, table=True):
     current_quantity: float = Field(default=0.0)
     reserved_quantity: float = Field(default=0.0)
     available_quantity: float = Field(default=0.0)
-    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    last_updated: datetime = Field(sa_column=Column(DateTime(timezone=True)))
 
     # Relationship
     product: Optional["Product"] = Relationship(back_populates="inventory")
@@ -59,7 +59,7 @@ class StockMovement(SQLModel, table=True):
         ),
     )
     quantity: int = Field()
-    movement_date: datetime = Field(default_factory=datetime.utcnow)
+    movement_date: datetime = Field(sa_column=Column(DateTime(timezone=True)))
     observations: Optional[str] = Field(default=None)
 
     # Relationship

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import Depends
 from fastapi_async_sqlalchemy import db
@@ -19,8 +19,6 @@ async def list_inventory(offset: int = 0, limit: int = 20) -> list[Inventory]:
         .join(Inventory.product)
         .options(contains_eager(Inventory.product))
         .order_by(Product.name)
-        .offset(offset)
-        .limit(limit)
     )
     return result.scalars().all()
 
@@ -58,6 +56,7 @@ async def _apply_stock_movement(item: InventoryUpdateBatch, user: User) -> Inven
         code=item.code,
         user_id=user.id,
         movement_type=item.movement_type,
+        movement_date=item.movement_date,
         quantity=item.quantity,
         observations=item.observations,
     )
@@ -67,7 +66,7 @@ async def _apply_stock_movement(item: InventoryUpdateBatch, user: User) -> Inven
     inventory.available_quantity = (
         inventory.current_quantity - inventory.reserved_quantity
     )
-    inventory.last_updated = datetime.utcnow()
+    inventory.last_updated = datetime.now(timezone.utc)
 
     return inventory
 
