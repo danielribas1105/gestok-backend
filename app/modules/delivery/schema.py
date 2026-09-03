@@ -14,14 +14,19 @@ class DeliveryCreate(SQLModel):
     invoice: Optional[str] = None
     status: DeliveryStatus = DeliveryStatus.PENDING
     observations: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
     departed_at: Optional[datetime] = None
-    delivery_at: Optional[datetime] = None
-    delivery_confirmed: Optional[bool] = False
+    delivered_at: Optional[datetime] = None
+    delivered_confirmed: Optional[bool] = False
 
 
 class DeliveryUpdate(SQLModel):
-    car_id: Optional[uuid.UUID] = None
+    invoice: Optional[str] = None
     status: Optional[DeliveryStatus] = None
+    scheduled_at: Optional[datetime] = None
+    departed_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+    delivered_confirmed: Optional[bool] = None
 
 
 class DeliveryRead(SQLModel):
@@ -34,9 +39,10 @@ class DeliveryRead(SQLModel):
     status: DeliveryStatus
     observations: Optional[str] = None
     created_at: datetime
+    scheduled_at: Optional[datetime] = None
     departed_at: Optional[datetime] = None
-    delivery_at: Optional[datetime] = None
-    delivery_confirmed: Optional[bool] = None
+    delivered_at: Optional[datetime] = None
+    delivered_confirmed: Optional[bool] = None
 
     # Campos resolvidos
     order_code: Optional[str] = None

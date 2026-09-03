@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Body, Depends
+import uuid
+from fastapi import APIRouter, Depends
 
 from app.modules.auth.service import get_current_user
 from app.modules.delivery import service
 from app.modules.delivery.schema import (
     DeliveryCreate,
     DeliveryRead,
+    DeliveryUpdate,
 )
 from app.modules.user.model import User
 
@@ -26,25 +28,27 @@ async def create_delivery(
     return await service.create_delivery(delivery)
 
 
-""" @router.get("/{delivery_id}", response_model=DeliveryRead)
-def get_delivery(delivery_id: uuid.UUID, session: Session = Depends(get_session)):
-    return service.get_delivery(session, delivery_id)
+@router.get("/{delivery_id}", response_model=DeliveryRead)
+def get_delivery_by_id(delivery_id: uuid.UUID):
+    return service.get_delivery_by_id(delivery_id)
 
 
-@router.patch("/{delivery_id}", response_model=DeliveryRead)
-def update_delivery(
+@router.put("/{delivery_id}", response_model=DeliveryRead)
+async def update_delivery(
     delivery_id: uuid.UUID,
     data: DeliveryUpdate,
-    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ):
-    return service.update_delivery(session, delivery_id, data)
+    """
+    Update delivery
+    """
+    return await service.update_delivery(delivery_id, data)
 
 
-@router.patch("/{delivery_id}/confirm", response_model=DeliveryRead)
+""" @router.patch("/{delivery_id}/confirm", response_model=DeliveryRead)
 def confirm_delivery(
     delivery_id: uuid.UUID,
     data: DeliveryConfirm,
     session: Session = Depends(get_session),
 ):
-    return service.confirm_delivery(session, delivery_id)
-"""
+    return service.confirm_delivery(session, delivery_id) """

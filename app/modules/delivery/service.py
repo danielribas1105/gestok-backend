@@ -23,9 +23,10 @@ def _to_delivery_read(delivery: Delivery) -> DeliveryRead:
         status=delivery.status,
         observations=delivery.observations,
         created_at=delivery.created_at,
+        scheduled_at=delivery.scheduled_at,
         departed_at=delivery.departed_at,
-        delivery_at=delivery.delivery_at,
-        delivery_confirmed=delivery.delivery_confirmed,
+        delivered_at=delivery.delivered_at,
+        delivered_confirmed=delivery.delivered_confirmed,
         car=f"{delivery.car.plate} - {delivery.car.model}" if delivery.car else None,
         driver=(
             delivery.car.driver.name if delivery.car and delivery.car.driver else None
@@ -111,6 +112,39 @@ async def _apply_stock_movements_for_delivery(delivery: Delivery, order: Order) 
     db.session.add(order)
 
 
+async def _conclude_order_for_delivery(delivery: Delivery) -> None:
+    """
+    Ao concluir a entrega, fecha o pedido como CONCLUDED.
+    NÃO dá baixa de estoque de novo — isso já aconteceu na criação
+    da entrega (_apply_stock_movements_for_delivery), quando o pedido
+    foi travado como PROCESSED.
+    """
+    order = delivery.order
+    if not order:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            f"Entrega {delivery.id} não possui pedido vinculado",
+        )
+
+    # Idempotência: se o pedido já está concluído, não faz nada
+    if order.status == OrderStatus.CONCLUDED:
+        return
+
+    # Guard essencial: só pode concluir se o pedido já passou pela
+    # baixa de estoque (PROCESSED). Se estiver PENDING (ou outro
+    # status), algo está fora de ordem — bloqueia.
+    if order.status != OrderStatus.PROCESSED:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Pedido {order.code} não está processado (status atual: {order.status}); "
+            "não é possível concluir a entrega sem a baixa de estoque já ter sido feita",
+        )
+
+    order.status = OrderStatus.CONCLUDED
+    order.processed_at = datetime.now(timezone.utc)
+    db.session.add(order)
+
+
 async def list_delivery(offset: int = 0, limit: int = 20) -> list[DeliveryRead]:
     result = await db.session.execute(
         select(Delivery)
@@ -165,42 +199,81 @@ async def create_delivery(data: list[DeliveryCreate]) -> list[DeliveryRead]:
     return [_to_delivery_read(d) for d in created]
 
 
-def get_delivery(session: Session, delivery_id: uuid.UUID) -> Delivery:
-    delivery = session.get(Delivery, delivery_id)
+async def get_delivery_by_id(delivery_id: uuid.UUID) -> DeliveryRead:
+    result = await db.session.execute(
+        select(Delivery)
+        .options(
+            selectinload(Delivery.car).selectinload(Car.driver),
+            selectinload(Delivery.user),
+            selectinload(Delivery.order),
+        )
+        .where(Delivery.id == delivery_id)
+    )
+    delivery = result.scalar_one_or_none()
     if not delivery:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Entrega não encontrada")
-    return delivery
+    return _to_delivery_read(delivery)
 
 
-def update_delivery(
-    session: Session, delivery_id: uuid.UUID, data: DeliveryUpdate
-) -> Delivery:
-    delivery = get_delivery(session, delivery_id)
+async def update_delivery(delivery_id: uuid.UUID, data: DeliveryUpdate) -> DeliveryRead:
+    result = await db.session.execute(
+        select(Delivery)
+        .options(
+            selectinload(Delivery.car).selectinload(Car.driver),
+            selectinload(Delivery.user),
+            selectinload(Delivery.order),
+        )
+        .where(Delivery.id == delivery_id)
+        .with_for_update()  # trava a linha contra updates concorrentes na mesma entrega
+    )
+    delivery = result.scalar_one_or_none()
+    if not delivery:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Entrega não encontrada")
+
     update_data = data.model_dump(exclude_unset=True)
+    new_status = update_data.get("status")
 
-    # Se o carro for trocado, o motorista é re-derivado junto
-    if "car_id" in update_data:
-        car = session.get(Car, update_data["car_id"])
-        if not car:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Carro não encontrado")
-        if not car.driver_id:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "Este carro não possui motorista vinculado",
-            )
-        delivery.driver_id = car.driver_id
+    # Transições relevantes
+    is_departing = (
+        new_status == DeliveryStatus.IN_TRANSIT
+        and delivery.status != DeliveryStatus.IN_TRANSIT
+    )
+    # Só dispara a conclusão do pedido se o status está de fato
+    # MUDANDO para CONCLUDED (evita reprocessar em updates repetidos)
+    is_concluding = (
+        new_status == DeliveryStatus.CONCLUDED
+        and delivery.status != DeliveryStatus.CONCLUDED
+    )
 
-    for key, value in update_data.items():
-        setattr(delivery, key, value)
+    for field, value in update_data.items():
+        setattr(delivery, field, value)
 
-    session.add(delivery)
-    session.commit()
-    session.refresh(delivery)
-    return delivery
+    # Ao sair para trânsito pela primeira vez, registra departed_at
+    # automaticamente no servidor (sobrescreve qualquer valor vindo
+    # do client, para evitar inconsistência de horário/fuso)
+    if delivery.departed_at is None:
+        delivery.departed_at = datetime.now(timezone.utc)
+
+    if is_concluding:
+        delivery.delivered_at = datetime.now(timezone.utc)
+
+    db.session.add(delivery)
+
+    try:
+        if is_concluding:
+            await _conclude_order_for_delivery(delivery)
+
+        await db.session.commit()  # ← um único commit, no final, com tudo validado
+    except HTTPException:
+        await db.session.rollback()
+        raise
+
+    await db.session.refresh(delivery, attribute_names=["car", "user", "order"])
+    return _to_delivery_read(delivery)
 
 
-def confirm_delivery(session: Session, delivery_id: uuid.UUID) -> Delivery:
-    delivery = get_delivery(session, delivery_id)
+""" async def confirm_delivery(session: Session, delivery_id: uuid.UUID) -> Delivery:
+    delivery = get_delivery_by_id(delivery_id)
 
     if delivery.status == DeliveryStatus.CONFIRMED:
         raise HTTPException(status.HTTP_409_CONFLICT, "Entrega já confirmada")
@@ -217,4 +290,4 @@ def confirm_delivery(session: Session, delivery_id: uuid.UUID) -> Delivery:
 
     session.commit()
     session.refresh(delivery)
-    return delivery
+    return delivery """
