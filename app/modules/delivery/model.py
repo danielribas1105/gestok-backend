@@ -43,17 +43,25 @@ class Delivery(SQLModel, table=True):
     )
     observations: Optional[str] = Field(default=None)
 
+    # Data de lançamento da entrega
     created_at: Optional[datetime] = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), server_default=func.now()),
     )
-    departed_at: Optional[datetime] = Field(
-        default=None, sa_column=Column(DateTime(timezone=True))
-    )  # Load out date
-    delivery_at: Optional[datetime] = Field(
+    # Data de agendamento para a entrega
+    scheduled_at: Optional[datetime] = Field(
         default=None, sa_column=Column(DateTime(timezone=True))
     )
-    delivery_confirmed: bool = Field(default=False)
+    # Data de saída para entrega
+    departed_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
+    # Data de entrega
+    delivered_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
+    # Confirmação da entrega com retorno do canhoto
+    delivered_confirmed: bool = Field(default=False)
 
     # Relationship
     order: Optional["Order"] = Relationship(back_populates="delivery")
